@@ -18,12 +18,32 @@
   <!-- ===================== BARRA DE NAVEGACIÓN ===================== -->
   <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
     <div class="container">
-      <span class="navbar-brand">
+      <a class="navbar-brand" href="index.html">
         <i class="bi bi-book"></i> Profematerias
-      </span>
-      <span class="navbar-text d-none d-md-inline">
-        API REST Spring Boot + Bootstrap + AJAX
-      </span>
+      </a>
+      <button class="navbar-toggler" type="button"
+              data-bs-toggle="collapse" data-bs-target="#menuNavegacion"
+              aria-controls="menuNavegacion" aria-expanded="false"
+              aria-label="Alternar navegación">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="menuNavegacion">
+        <ul class="navbar-nav me-auto">
+          <li class="nav-item">
+            <a class="nav-link active" href="index.html">
+              <i class="bi bi-journal-text"></i> Materias
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="profesores.html">
+              <i class="bi bi-person-badge"></i> Profesores
+            </a>
+          </li>
+        </ul>
+        <span class="navbar-text d-none d-md-inline">
+          API REST Spring Boot + Bootstrap + AJAX
+        </span>
+      </div>
     </div>
   </nav>
 
@@ -210,9 +230,10 @@
     <code>http://localhost:8080/api/materias</code>
   </footer>
 
-  <!-- jQuery (necesario para $.ajax) y Bootstrap JS -->
+  <!-- jQuery (necesario para $.ajax), Bootstrap JS y utilidades comunes -->
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/common.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

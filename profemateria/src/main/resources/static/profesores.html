@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Profematerias - Gestión de Profesores</title>
+
+  <!-- Bootstrap 5 (CDN) -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"
+        rel="stylesheet">
+  <link href="css/style.css" rel="stylesheet">
+</head>
+<body>
+
+  <!-- ===================== BARRA DE NAVEGACIÓN ===================== -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+    <div class="container">
+      <a class="navbar-brand" href="index.html">
+        <i class="bi bi-book"></i> Profematerias
+      </a>
+      <button class="navbar-toggler" type="button"
+              data-bs-toggle="collapse" data-bs-target="#menuNavegacion"
+              aria-controls="menuNavegacion" aria-expanded="false"
+              aria-label="Alternar navegación">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="menuNavegacion">
+        <ul class="navbar-nav me-auto">
+          <li class="nav-item">
+            <a class="nav-link" href="index.html">
+              <i class="bi bi-journal-text"></i> Materias
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link active" href="profesores.html">
+              <i class="bi bi-person-badge"></i> Profesores
+            </a>
+          </li>
+        </ul>
+        <span class="navbar-text d-none d-md-inline">
+          API REST Spring Boot + Bootstrap + AJAX
+        </span>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container">
+
+    <!-- Zona de mensajes (éxito / error), generada por AJAX -->
+    <div id="zonaMensajes" aria-live="polite"></div>
+
+    <!-- ===================== BUSCAR POR ID ===================== -->
+    <div class="card mb-4 shadow-sm">
+      <div class="card-header bg-white">
+        <i class="bi bi-search"></i> Buscar profesor por ID
+        <span class="text-muted small ms-2">GET /api/profesor/{id}</span>
+      </div>
+      <div class="card-body">
+        <div class="row g-2">
+          <div class="col-sm-4 col-md-3">
+            <input type="number" id="inputBuscarId" class="form-control"
+                   min="1" placeholder="Ej.: 1">
+          </div>
+          <div class="col-auto">
+            <button id="btnBuscar" class="btn btn-outline-primary">
+              <i class="bi bi-search"></i> Buscar
+            </button>
+          </div>
+          <div class="col-auto">
+            <button id="btnLimpiarBusqueda" class="btn btn-outline-secondary">
+              Limpiar
+            </button>
+          </div>
+        </div>
+        <!-- Contenedor del resultado de la búsqueda (se llena con AJAX) -->
+        <div id="resultadoBusqueda" class="mt-3"></div>
+      </div>
+    </div>
+
+    <div class="row">
+
+      <!-- ===================== FORMULARIO CREAR / EDITAR ===================== -->
+      <div class="col-lg-4 mb-4">
+        <div class="card shadow-sm h-100">
+          <div class="card-header bg-white" id="tituloFormulario">
+            <i class="bi bi-person-plus"></i> Nuevo profesor
+            <span class="text-muted small ms-2">POST /api/profesor</span>
+          </div>
+          <div class="card-body">
+            <form id="formProfesor" novalidate>
+
+              <!-- Campo oculto: idProfesor solo se envía en PUT -->
+              <input type="hidden" id="idProfesor" value="">
+
+              <div class="mb-3">
+                <label for="nombre" class="form-label">Nombre *</label>
+                <input type="text" class="form-control" id="nombre"
+                       maxlength="45" required placeholder="Hubert">
+                <div class="invalid-feedback">El nombre es obligatorio.</div>
+              </div>
+
+              <div class="mb-3">
+                <label for="apellidos" class="form-label">Apellidos *</label>
+                <input type="text" class="form-control" id="apellidos"
+                       maxlength="45" required placeholder="Farnsworth">
+                <div class="invalid-feedback">Los apellidos son obligatorios.</div>
+              </div>
+
+              <div class="mb-3">
+                <label for="direccion" class="form-label">Dirección</label>
+                <input type="text" class="form-control" id="direccion"
+                       maxlength="100" placeholder="Planet Express">
+                <div class="form-text">
+                  Opcional (columna nullable en la BD).
+                </div>
+              </div>
+
+              <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-success" id="btnGuardar">
+                  <i class="bi bi-save"></i> Guardar (POST)
+                </button>
+                <button type="button" class="btn btn-outline-secondary"
+                        id="btnCancelarEdicion" hidden>
+                  <i class="bi bi-x-circle"></i> Cancelar edición
+                </button>
+              </div>
+
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===================== LISTADO ===================== -->
+      <div class="col-lg-8 mb-4">
+        <div class="card shadow-sm">
+          <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <span>
+              <i class="bi bi-table"></i> Listado de profesores
+              <span class="text-muted small ms-2">GET /api/profesor</span>
+            </span>
+            <button id="btnRecargar" class="btn btn-sm btn-outline-primary">
+              <i class="bi bi-arrow-clockwise"></i> Recargar
+            </button>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-striped table-hover mb-0 align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th scope="col">ID</th>
+                  <th scope="col">Nombre</th>
+                  <th scope="col">Apellidos</th>
+                  <th scope="col">Dirección</th>
+                  <th scope="col" class="text-end">Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="tablaProfesores">
+                <tr>
+                  <td colspan="5" class="text-center text-muted py-4">
+                    Cargando datos...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="card-footer bg-white text-muted small" id="pieTabla">
+            Esperando respuesta de la API...
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- ===================== MODAL DE CONFIRMACIÓN (DELETE) ===================== -->
+  <div class="modal fade" id="modalEliminar" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header bg-danger text-white">
+          <h5 class="modal-title"><i class="bi bi-exclamation-triangle"></i> Confirmar eliminación</h5>
+          <button type="button" class="btn-close btn-close-white"
+                  data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-1">Vas a eliminar al profesor:</p>
+          <p class="fw-bold mb-0" id="nombreProfesorAEliminar"></p>
+          <p class="text-muted small mt-2 mb-0">
+            Se enviará <code id="rutaDelete">DELETE /api/profesor/{id}</code>
+          </p>
+          <div class="alert alert-warning mt-3 mb-0 py-2 small" role="alert">
+            Si el profesor tiene materias asignadas, la API devolverá
+            <strong>HTTP 500</strong> (violación de clave foránea) y no se
+            eliminará.
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary"
+                  data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-danger" id="btnConfirmarEliminar">
+            <i class="bi bi-trash"></i> Eliminar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== CONSOLA DE PETICIONES (AJAX) ===================== -->
+  <section class="container mb-5">
+    <div class="card shadow-sm border-info">
+      <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-terminal"></i> Consola de peticiones AJAX</span>
+        <button class="btn btn-sm btn-outline-light" id="btnLimpiarConsola">Limpiar</button>
+      </div>
+      <div class="card-body p-0">
+        <pre id="consolaAjax" class="mb-0 p-3 small"></pre>
+      </div>
+    </div>
+  </section>
+
+  <footer class="text-center text-muted small pb-4">
+    Frontend servido por Spring Boot en <code>/profesores.html</code> &mdash; API en
+    <code>http://localhost:8080/api/profesor</code>
+  </footer>
+
+  <!-- jQuery (necesario para $.ajax), Bootstrap JS y utilidades comunes -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/common.js"></script>
+  <script src="js/profesores.js"></script>
+</body>
+</html>

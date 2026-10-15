@@ -2,12 +2,16 @@
 
 > **Proyecto:** `profemateria` (Spring Boot 4.1.1 · Java 21 · MySQL)
 > **Frontend:** HTML + Bootstrap 5 + AJAX (jQuery `$.ajax`)
-> **Archivos:**
+>
+> Dos recursos con su propia página: **Materias** y **Profesores**.
 >
 > | Archivo | Ruta | Contenido |
 > |---|---|---|
-> | `index.html` | `profemateria/src/main/resources/static/index.html` | Vista (tabla, form, búsqueda, modal, consola) |
-> | `app.js` | `profemateria/src/main/resources/static/js/app.js` | Toda la lógica AJAX |
+> | `index.html` | `profemateria/src/main/resources/static/index.html` | Vista de **Materias** |
+> | `profesores.html` | `profemateria/src/main/resources/static/profesores.html` | Vista de **Profesores** |
+> | `app.js` | `profemateria/src/main/resources/static/js/app.js` | AJAX de Materias (`/api/materias`) |
+> | `profesores.js` | `profemateria/src/main/resources/static/js/profesores.js` | AJAX de Profesores (`/api/profesor`) |
+> | `common.js` | `profemateria/src/main/resources/static/js/common.js` | Utilidades AJAX compartidas por ambas páginas |
 > | `style.css` | `profemateria/src/main/resources/static/css/style.css` | Estilos propios |
 
 ---
@@ -16,33 +20,35 @@
 
 ```
 ┌──────────────────────────────── NAVEGADOR ────────────────────────────────┐
-│  index.html (Bootstrap 5)                                                │
-│      │                                                                   │
-│      │  app.js  →  $.ajax()  (jQuery)                                    │
+│  index.html (Materias)      profesores.html (Profesores)   Bootstrap 5   │
+│      │                             │                                     │
+│      │  app.js / profesores.js  →  $.ajax()  (jQuery)                    │
+│      │  (utilidades comunes en common.js)                                │
 │      │      · serializa objetos JS a texto JSON   (JSON.stringify)       │
 │      │      · envía peticiones HTTP                (XHR)                 │
 │      │      · parsea las respuestas a objetos JS  (JSON.parse)           │
-└──────┼────────────────────────────────────────────────────────────────────┘
-       │  HTTP/1.1  (puerto 8080, mismo origen)
+└──────┼─────────────────────────────┼──────────────────────────────────────┘
+       │  HTTP/1.1 (puerto 8080, mismo origen)
        ▼
 ┌──────────────────────────── SPRING BOOT ──────────────────────────────────┐
-│  MateriaRestController  (/api)                                           │
-│      · @RequestBody  → Jackson deserializa JSON  → objeto Materia        │
+│  MateriaRestController (/api/materias)   ProfesorRestController(/api/profesor)│
+│      · @RequestBody  → Jackson deserializa JSON  → objeto entidad        │
 │      · @ResponseBody → Jackson serializa objeto  → JSON                  │
-│           │                                                              │
-│           ▼                                                              │
-│  MateriaDAO / MateriaDAOImpl  (JPA · EntityManager)                      │
-│           │                                                              │
-│           ▼                                                              │
-│  MySQL  tabla `materia`  (api_rest_spring-boot)                          │
+│           │                                  │                           │
+│           ▼                                  ▼                           │
+│  MateriaDAO / MateriaDAOImpl        ProfesorDAO / ProfesorDAOImpl         │
+│  (JPA · EntityManager)              (JPA · EntityManager)                 │
+│           │                                  │                           │
+│           ▼                                  ▼                           │
+│  MySQL tablas `materia` y `profesor`  (api_rest_spring-boot)             │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Dato clave:** el HTML se sirve desde la **misma** aplicación Spring Boot
+**Dato clave:** los HTML se sirven desde la **misma** aplicación Spring Boot
 (`src/main/resources/static`), así que no hay problema de CORS en el uso
-normal. Además se añadió `@CrossOrigin(origins = "*")` en
-`MateriaRestController.java:17` para permitir abrir el HTML desde otro
-origen (por ejemplo, un servidor de estáticos separado).
+normal. Además ambos controladores llevan `@CrossOrigin(origins = "*")` para
+permitir abrir las páginas desde otro origen (por ejemplo, un servidor de
+estáticos separado).
 
 ---
 
@@ -50,7 +56,8 @@ origen (por ejemplo, un servidor de estáticos separado).
 
 ### 2.1 Objeto JavaScript → HTTP request (salida)
 
-En `app.js` la función `serializar()` (`app.js:27`) aplica `JSON.stringify()`:
+En `common.js` la función `serializar()` aplica `JSON.stringify()` (la usan
+tanto `app.js` como `profesores.js`):
 
 ```js
 // objeto JS en memoria
@@ -70,7 +77,8 @@ Content-Type: application/json; charset=UTF-8
 Accept: application/json, text/javascript, */*; q=0.01   (lo pone jQuery)
 ```
 
-En `$.ajax` eso se controla con tres opciones (`app.js:227-231`):
+En `$.ajax` eso se controla con tres opciones (`app.js:161-172` para POST en
+materias; `profesores.js` para profesores):
 
 ```js
 $.ajax({
@@ -116,7 +124,7 @@ El mapeo de campos es **por nombre exacto** (camelCase → snake_case):
 ⚠️ Si el frontend enviara `horas_catedra` (snake_case) en vez de
 `horasCatedra`, Jackson **no lo reconocería**, el campo quedaría en `0` y la
 petición terminaría igualmente en 200. Por eso
-`obtenerDatosDelFormulario()` (`app.js:307`) usa los nombres camelCase
+`obtenerDatosDelFormulario()` (`app.js:257`) usa los nombres camelCase
 exactos.
 
 ### 2.3 Respuesta HTTP → objeto JavaScript (entrada al navegador)
@@ -186,7 +194,7 @@ success: function (data) {   // data ya es { idMateria: 1, nombre: "..." }
 >   profesor(id)`) ya existe en MySQL, así que un `idProfesor` inexistente
 >   provoca error 500 (violación de FK).
 
-Código: `listarMaterias()` → `app.js:84` · render en `renderizarTabla()` → `app.js:117`.
+Código: `listarMaterias()` → `app.js:33` · render en `renderizarTabla()` → `app.js:60`.
 
 ### 3.2 BUSCAR UNO — `GET /api/materias/{id}`
 
@@ -199,7 +207,7 @@ Código: `listarMaterias()` → `app.js:84` · render en `renderizarTabla()` →
 ⚠️ **Particularidad:** `findById` devuelve `null` cuando no hay coincidencia
 y el controlador no tiene `@ResponseStatus(NOT_FOUND)`, así que la API
 responde `200` con el body vacío. El frontend lo detecta en
-`app.js:159` (`if (data === null)`) y muestra un aviso.
+`app.js:121` (`if (data === null)`) y muestra un aviso.
 
 ### 3.3 CREAR — `POST /api/materias`
 
@@ -208,9 +216,9 @@ Flujo completo de la transmisión:
 ```
 1. El usuario rellena el formulario de index.html
 2. submit → e.preventDefault()                        (app.js:334)
-3. validarFormulario()  — Constraint Validation de HTML5
+3. validarFormulario("#formMateria") — Constraint Validation de HTML5
       (el backend NO valida: lo que llegue se persiste tal cual)
-4. obtenerDatosDelFormulario() → objeto JS             (app.js:307)
+4. obtenerDatosDelFormulario() → objeto JS             (app.js:257)
       { nombre, creditos, horasCatedra, idProfesor }   ← SIN idMateria
 5. JSON.stringify(datos)  → texto JSON
 6. $.ajax envía:
@@ -226,7 +234,7 @@ Flujo completo de la transmisión:
 11. success → mensaje de éxito + listarMaterias() refresca la tabla
 ```
 
-Nota: en modo creación se hace `delete datos.idMateria` (`app.js:341`) para
+Nota: en modo creación se hace `delete datos.idMateria` (`app.js:343`) para
 no mandar `idMateria: 0` (innecesario; la BD asigna el id).
 
 ### 3.4 ACTUALIZAR — `PUT /api/materias`
@@ -242,7 +250,7 @@ El DAO (`MateriaDAOImpl.update`) busca la fila por `idMateria`; si no
 existe, `entityManager.merge()` **inserta una fila nueva** (comportamiento
 *upsert*). La respuesta es `200 OK` con el objeto reflejado.
 
-Código: `actualizarMateria()` → `app.js:263`.
+Código: `actualizarMateria()` → `app.js:194`.
 
 ### 3.5 ELIMINAR — `DELETE /api/materias/{id}`
 
@@ -256,9 +264,52 @@ Código: `actualizarMateria()` → `app.js:263`.
 Materia eliminada - id: 3
 ```
 
-Por eso el AJAX declara `dataType: "text"` (`app.js:290`): si se pidiera
+Por eso el AJAX declara `dataType: "text"` (`app.js:233`): si se pidiera
 `"json"`, jQuery fallaría al hacer `JSON.parse("Materia eliminada - id: 3")`.
-La UI abre antes un modal de confirmación (`abrirModalEliminar()` → `app.js:326`).
+La UI abre antes un modal de confirmación (`abrirModalEliminar()` → `app.js:307`).
+
+### 3.6 Recurso Profesor — `/api/profesor`
+
+Se gestiona desde **`profesores.html` + `profesores.js`**. Las reglas de
+transmisión son idénticas a las de Materias (mismo `$.ajax`, mismo
+`Content-Type`, mismo `dataType`); solo cambian la ruta y los campos.
+
+Entidad `Profesor` (JSON ↔ Java ↔ MySQL):
+
+| JSON (navegador) | Atributo Java (`Profesor.java`) | Columna MySQL |
+|---|---|---|
+| `idProfesor` | `private int idProfesor;` | `id` (PK autoincrement) |
+| `nombre` | `private String nombre;` | `nombre` |
+| `apellidos` | `private String apellidos;` | `apellidos` |
+| `direccion` | `private String direccion;` | `direccion` (nullable) |
+
+| Método | Ruta | Request | Response | `dataType` jQuery |
+|---|---|---|---|---|
+| GET | `/api/profesor` | — | array JSON | `"json"` |
+| GET | `/api/profesor/{id}` | id en la ruta | objeto JSON o vacío | `"json"` |
+| POST | `/api/profesor` | objeto **sin** `idProfesor` | objeto creado (con id) | `"json"` |
+| PUT | `/api/profesor` | objeto **con** `idProfesor` | objeto actualizado | `"json"` |
+| DELETE | `/api/profesor/{id}` | id en la ruta, sin body | **texto plano** | `"text"` |
+
+Ejemplo de respuesta de `GET /api/profesor`:
+
+```json
+[
+  { "idProfesor": 1, "nombre": "Hubert", "apellidos": "Farnsworth", "direccion": "Planet Express" },
+  { "idProfesor": 2, "nombre": "Ogden",  "apellidos": "Wernstrom",  "direccion": "Mars University" }
+]
+```
+
+El DELETE responde texto plano, p. ej. `Profesor eliminado - id 3` (por eso
+`dataType: "text"` en `profesores.js`).
+
+⚠️ **Clave foránea:** `materia.id_profesor → profesor.id`. Si se intenta
+borrar un profesor que tiene materias asignadas, MySQL rechaza el `DELETE`
+(HTTP 500) y el registro **no** se elimina. La página lo avisa en el modal.
+
+Código: `listarProfesores()` → `profesores.js:30` · `crearProfesor()` →
+`profesores.js:150` · `actualizarProfesor()` → `profesores.js:181` ·
+`eliminarProfesor()` → `profesores.js:214`.
 
 ---
 
@@ -271,6 +322,11 @@ La UI abre antes un modal de confirmación (`abrirModalEliminar()` → `app.js:3
 | Crear | POST | `/api/materias` | objeto **sin** `idMateria` | `application/json` | objeto con `idMateria` nuevo | `application/json` | `"json"` |
 | Actualizar | PUT | `/api/materias` | objeto **con** `idMateria` | `application/json` | objeto actualizado | `application/json` | `"json"` |
 | Eliminar | DELETE | `/api/materias/{id}` | — | — | texto plano | `text/plain` | `"text"` |
+| Listar | GET | `/api/profesor` | — | — | array JSON | `application/json` | `"json"` |
+| Buscar | GET | `/api/profesor/{id}` | — | — | objeto JSON o vacío | `application/json` | `"json"` |
+| Crear | POST | `/api/profesor` | objeto **sin** `idProfesor` | `application/json` | objeto con `idProfesor` nuevo | `application/json` | `"json"` |
+| Actualizar | PUT | `/api/profesor` | objeto **con** `idProfesor` | `application/json` | objeto actualizado | `application/json` | `"json"` |
+| Eliminar | DELETE | `/api/profesor/{id}` | — | — | texto plano | `text/plain` | `"text"` |
 
 ---
 
@@ -292,8 +348,9 @@ Situaciones posibles y su comportamiento:
 
 | Causa | HTTP | Cuerpo | Reacción del frontend |
 |---|---|---|---|
-| JSON malformado / id no numérico | 400 | JSON de error de Spring | `error:` → alerta roja con `mensajeError()` (`app.js:70`) |
-| `idProfesor` inexistente (violación FK) | 500 | JSON/HTML de error | alerta roja; el registro **no** se crea |
+| JSON malformado / id no numérico | 400 | JSON de error de Spring | `error:` → alerta roja con `mensajeError()` (`common.js:81`) |
+| `idProfesor` inexistente al crear materia (violación FK) | 500 | JSON/HTML de error | alerta roja; el registro **no** se crea |
+| Borrar profesor con materias asignadas (violación FK) | 500 | JSON/HTML de error | alerta roja; el profesor **no** se elimina |
 | Backend caído / puerto cerrado | 0 | — | "No se pudo contactar con la API…" |
 | ID inexistente en búsqueda | 200 | body vacío | aviso ámbar "No existe ninguna materia con ID n" |
 | DELETE de id inexistente | 200 | texto de éxito igualmente | la API lo trata como no-op (quirirk documentado) |
@@ -307,7 +364,8 @@ hora, verbo, URL, body enviado y respuesta recibida.
 ## 6. Validación
 
 * **Frontend:** HTML5 Constraint Validation (`required`, `min`, `max`,
-  `maxlength`) + `checkValidity()` en `validarFormulario()` (`app.js:296`).
+  `maxlength`) + `checkValidity()` en `validarFormulario(selector)`
+  (`common.js:97`).
 * **Backend:** no hay ninguna (`@Valid`/`jakarta.validation` no se usan).
   Cualquier payload JSON que Jackson pueda mapear se persiste sin comprobar
   rangos ni nulos.
@@ -355,11 +413,14 @@ cd profemateria
 ./mvnw spring-boot:run
 ```
 
-1. Abrir **<http://localhost:8080/index.html>** (el HTML está en `static/`,
-   servido por la propia aplicación → mismo origen → sin CORS).
-2. La página carga el listado automáticamente (`GET /api/materias`).
+1. Abrir **<http://localhost:8080/index.html>** (Materias) o
+   **<http://localhost:8080/profesores.html>** (Profesores). El HTML está en
+   `static/`, servido por la propia aplicación → mismo origen → sin CORS.
+2. Cada página carga su listado automáticamente (`GET /api/materias` o
+   `GET /api/profesor`).
 3. Cada acción de la UI dispara su `$.ajax` y queda registrada en la
-   consola de peticiones al final de la página.
+   consola de peticiones al final de la página. Se navega entre ambas con la
+   barra superior.
 
 Requisitos: MySQL accesible en `host.docker.internal:3306` con la base
 `api_rest_spring-boot` (script en `data/generar_base_de_datos.sql`).
@@ -387,4 +448,25 @@ curl -s -X PUT http://localhost:8080/api/materias \
 
 # BORRAR  → eliminarMateria()
 curl -s -X DELETE http://localhost:8080/api/materias/1
+
+# ----- Profesores (/api/profesor) -----
+
+# LISTAR  → listarProfesores()
+curl -s http://localhost:8080/api/profesor
+
+# BUSCAR  → buscarPorId()
+curl -s http://localhost:8080/api/profesor/1
+
+# CREAR   → crearProfesor()
+curl -s -X POST http://localhost:8080/api/profesor \
+  -H "Content-Type: application/json" \
+  -d '{"nombre":"Ana","apellidos":"Gómez","direccion":"Calle 1"}'
+
+# EDITAR  → actualizarProfesor()
+curl -s -X PUT http://localhost:8080/api/profesor \
+  -H "Content-Type: application/json" \
+  -d '{"idProfesor":1,"nombre":"Hubert","apellidos":"Farnsworth","direccion":"Planet Express"}'
+
+# BORRAR  → eliminarProfesor()
+curl -s -X DELETE http://localhost:8080/api/profesor/4
 ```

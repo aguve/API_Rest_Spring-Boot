@@ -29,7 +29,7 @@ public class ProfesorRestController {
     public List <Profesor> findAll(){
         return profesorDAO.findAll();
     }
-    @GetMapping("/profesor/(id)")
+    @GetMapping("/profesor/{id}")
     public Profesor findById(@PathVariable int id){
         return profesorDAO.findById(id);
     }
@@ -46,10 +46,10 @@ public class ProfesorRestController {
         return profesor;
     }
     
-    @DeleteMapping("/profesor/id")
+    @DeleteMapping("/profesor/{id}")
     public String delete(@PathVariable int id){
         profesorDAO.delete(id);
-        return "Profesor eliminado - id" + id;
+        return "Profesor eliminado - id " + id;
     }
     
         
