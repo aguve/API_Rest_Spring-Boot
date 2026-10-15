@@ -32,6 +32,14 @@ public class MateriaDAOImpl implements MateriaDAO {
     @Override
     @Transactional
     public void update(Materia materia) {
+        int id = materia.getIdMateria();
+        Materia existingMateria = entityManager.find(Materia.class, id);
+        if (existingMateria != null) {
+            existingMateria.setNombre(materia.getNombre());
+            existingMateria.setCreditos(materia.getCreditos());
+            existingMateria.setHorasCatedra(materia.getHorasCatedra());
+            existingMateria.setIdProfesor(materia.getIdProfesor());
+        }
         entityManager.merge(materia);
     }
 
