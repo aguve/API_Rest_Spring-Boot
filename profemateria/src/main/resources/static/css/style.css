@@ -1,0 +1,35 @@
+/* style.css — ajustes menores sobre Bootstrap */
+
+body {
+  background-color: #f5f7fa;
+}
+
+/* Consola de peticiones AJAX */
+#consolaAjax {
+  background-color: #1e1e2e;
+  color: #cdd6f4;
+  max-height: 260px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: "Courier New", Courier, monospace;
+}
+
+#consolaAjax .log-hora {
+  color: #6c7086;
+}
+
+#consolaAjax .log-tipo {
+  color: #89b4fa;
+  font-weight: bold;
+}
+
+/* Tarjeta de resultado de búsqueda */
+#resultadoBusqueda .card {
+  animation: fadeIn 0.25s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
