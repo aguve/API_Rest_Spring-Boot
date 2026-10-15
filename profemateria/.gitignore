@@ -32,4 +32,7 @@ build/
 ### VS Code ###
 .vscode/
 
-application.properties
+### Variables de entorno con datos sensibles ###
+.env
+.env.local
+*.env

@@ -316,6 +316,40 @@ hora, verbo, URL, body enviado y respuesta recibida.
 
 ## 7. Cómo ejecutarlo
 
+### 7.1 Configuración de credenciales (`.env`)
+
+Las credenciales de MySQL **no** se guardan en `application.properties`.
+Este archivo solo declara variables (`${DB_URL}`, `${DB_USERNAME}`,
+`${DB_PASSWORD}`) y carga un `.env` local:
+
+```properties
+# application.properties
+spring.config.import=optional:file:./.env[.properties]
+spring.datasource.url=${DB_URL}
+spring.datasource.username=${DB_USERNAME}
+spring.datasource.password=${DB_PASSWORD}
+```
+
+1. Copiar la plantilla y rellenarla:
+   ```bash
+   cp profemateria/.env.example profemateria/.env
+   ```
+2. `.env` (ignorado por git) contiene:
+   ```properties
+   DB_URL=jdbc:mysql://host.docker.internal:3306/api_rest_spring-boot
+   DB_USERNAME=root
+   DB_PASSWORD=tu_password
+   ```
+
+> `spring.config.import=optional:file:./.env[.properties]` hace que Spring
+> Boot lea el `.env` como si fuera un `.properties` (el sufijo `[.properties]`
+> es el *extension hint*, porque el archivo no tiene extensión). `optional:`
+> evita el fallo si no existe; en ese caso se usarían variables de entorno
+> del sistema (útil en CI/Docker). Si no se define ninguna de las dos, el
+> arranque falla con *"Could not resolve placeholder 'DB_URL'"*.
+
+### 7.2 Arrancar
+
 ```bash
 cd profemateria
 ./mvnw spring-boot:run
