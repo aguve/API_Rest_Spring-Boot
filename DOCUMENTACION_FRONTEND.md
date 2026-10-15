@@ -309,7 +309,53 @@ borrar un profesor que tiene materias asignadas, MySQL rechaza el `DELETE`
 
 Código: `listarProfesores()` → `profesores.js:30` · `crearProfesor()` →
 `profesores.js:150` · `actualizarProfesor()` → `profesores.js:181` ·
-`eliminarProfesor()` → `profesores.js:214`.
+`eliminarProfesor()` → `profesores.js:214` · `verMateriasDeProfesor()` →
+`profesores.js` (subrecurso, ver 3.7).
+
+---
+
+### 3.7 Endpoints de relación (subrecurso)
+
+Ambos endpoints explotan la relación `@ManyToOne` `Materia → Profesor` y se
+consumen solo con **GET** (no tienen body de petición): el id va en la ruta y
+el servidor devuelve datos ya relacionados.
+
+| Método | Ruta | Request | Response | `dataType` jQuery |
+|---|---|---|---|---|
+| GET | `/api/materias/{id}/profesor` | id de la materia en la ruta | objeto JSON `Profesor` (vacío si la materia no existe o no tiene profesor) | `"json"` |
+| GET | `/api/profesor/{id}/materias` | id del profesor en la ruta | array JSON de `Materia` (vacío `[]` si no imparte ninguna) | `"json"` |
+
+- **`GET /api/materias/{id}/profesor`** → en el backend
+  `MateriaRestController.findProfesorByMateria()` llama a
+  `MateriaDAO.findProfesorByMateria()`, que hace `find(Materia.class, id)` y
+  devuelve `materia.getProfesor()`. Si la materia no existe, devuelve `null`
+  ⇒ respuesta **200 con body vacío**.
+- **`GET /api/profesor/{id}/materias`** → en el backend
+  `ProfesorRestController.findMateriasByProfesor()` ejecuta la consulta JPQL
+  `FROM Materia m WHERE m.idProfesor = :idProfesor` a través de
+  `ProfesorDAO.findMateriasByProfesor()`. Un id inexistente devuelve
+  **200 con `[]`** (nunca `null`).
+
+Ejemplo — `GET /api/materias/3/profesor`:
+
+```json
+{ "idProfesor": 1, "nombre": "Hubert", "apellidos": "Farnsworth", "direccion": "Planet Express" }
+```
+
+Ejemplo — `GET /api/profesor/1/materias` (cada materia incluye su profesor
+anidado de solo lectura):
+
+```json
+[
+  { "idMateria": 3, "nombre": "Introducción a la Iniciación", "creditos": 80, "horasCatedra": 450, "idProfesor": 1,
+    "profesor": { "idProfesor": 1, "nombre": "Hubert", "apellidos": "Farnsworth", "direccion": "Planet Express" } }
+]
+```
+
+En el frontend se muestran en un **modal de Bootstrap**: en `index.html` el
+botón *Profesor* de cada fila (y de la búsqueda) llama a
+`verProfesorDeMateria()` → `app.js`; en `profesores.html` el botón
+*Materias* llama a `verMateriasDeProfesor()` → `profesores.js`.
 
 ---
 
@@ -327,6 +373,8 @@ Código: `listarProfesores()` → `profesores.js:30` · `crearProfesor()` →
 | Crear | POST | `/api/profesor` | objeto **sin** `idProfesor` | `application/json` | objeto con `idProfesor` nuevo | `application/json` | `"json"` |
 | Actualizar | PUT | `/api/profesor` | objeto **con** `idProfesor` | `application/json` | objeto actualizado | `application/json` | `"json"` |
 | Eliminar | DELETE | `/api/profesor/{id}` | — | — | texto plano | `text/plain` | `"text"` |
+| Profesor de la materia | GET | `/api/materias/{id}/profesor` | — | — | objeto JSON o vacío | `application/json` | `"json"` |
+| Materias del profesor | GET | `/api/profesor/{id}/materias` | — | — | array JSON | `application/json` | `"json"` |
 
 ---
 
@@ -353,6 +401,7 @@ Situaciones posibles y su comportamiento:
 | Borrar profesor con materias asignadas (violación FK) | 500 | JSON/HTML de error | alerta roja; el profesor **no** se elimina |
 | Backend caído / puerto cerrado | 0 | — | "No se pudo contactar con la API…" |
 | ID inexistente en búsqueda | 200 | body vacío | aviso ámbar "No existe ninguna materia con ID n" |
+| ID inexistente en endpoint de relación | 200 | body vacío / `[]` | modal con "sin profesor asignado" / "no imparte materias" |
 | DELETE de id inexistente | 200 | texto de éxito igualmente | la API lo trata como no-op (quirirk documentado) |
 
 En todos los casos el detalle también queda impreso en la **consola de
@@ -469,4 +518,12 @@ curl -s -X PUT http://localhost:8080/api/profesor \
 
 # BORRAR  → eliminarProfesor()
 curl -s -X DELETE http://localhost:8080/api/profesor/4
+
+# ----- Endpoints de relación (subrecurso) -----
+
+# PROFESOR DE UNA MATERIA  → verProfesorDeMateria()
+curl -s http://localhost:8080/api/materias/3/profesor
+
+# MATERIAS DE UN PROFESOR  → verMateriasDeProfesor()
+curl -s http://localhost:8080/api/profesor/1/materias
 ```

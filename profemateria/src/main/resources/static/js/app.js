@@ -80,6 +80,10 @@ function renderizarTabla(materias) {
         // Celda de acciones
         const celda = $("<td>").addClass("text-end");
 
+        const btnProfesor = $('<button class="btn btn-sm btn-outline-info me-1">')
+            .html('<i class="bi bi-person-badge"></i> Profesor')
+            .on("click", function () { verProfesorDeMateria(m.idMateria, m.nombre); });
+
         const btnEditar = $('<button class="btn btn-sm btn-outline-warning me-1">')
             .html('<i class="bi bi-pencil"></i> Editar')
             .on("click", function () { cargarEnFormulario(m); });
@@ -88,7 +92,7 @@ function renderizarTabla(materias) {
             .html('<i class="bi bi-trash"></i> Eliminar')
             .on("click", function () { abrirModalEliminar(m); });
 
-        celda.append(btnEditar, btnEliminar);
+        celda.append(btnProfesor, btnEditar, btnEliminar);
         fila.append(celda);
         tbody.append(fila);
     });
@@ -141,12 +145,85 @@ function pintarResultadoBusqueda(m) {
           <div class="row align-items-center">
             <div class="col-sm-3"><strong>#${m.idMateria} ${escapar(m.nombre)}</strong></div>
             <div class="col-sm-3">Créditos: <span class="badge bg-primary">${m.creditos}</span></div>
-            <div class="col-sm-3">Horas: <span class="badge bg-info text-dark">${m.horasCatedra}</span></div>
-            <div class="col-sm-3">Profesor ID: <span class="badge bg-secondary">${m.idProfesor}</span></div>
+            <div class="col-sm-2">Horas: <span class="badge bg-info text-dark">${m.horasCatedra}</span></div>
+            <div class="col-sm-2">Profesor ID: <span class="badge bg-secondary">${m.idProfesor}</span></div>
+            <div class="col-sm-2 text-end">
+              <button class="btn btn-sm btn-outline-info" id="btnVerProfesorBusqueda">
+                <i class="bi bi-person-badge"></i> Ver profesor
+              </button>
+            </div>
           </div>
         </div>
       </div>`;
     $("#resultadoBusqueda").html(html);
+    $("#btnVerProfesorBusqueda").on("click", function () {
+        verProfesorDeMateria(m.idMateria, m.nombre);
+    });
+}
+
+/* ==========================================================================
+ * 2b. PROFESOR DE UNA MATERIA — GET /api/materias/{id}/profesor
+ * --------------------------------------------------------------------------
+ * Petición:  GET, el id de la materia va en la RUTA (subrecurso "profesor").
+ * Respuesta: 200 + objeto Profesor; si la materia no existe (o no tiene
+ *            profesor) la API devuelve null => body vacío.
+ * Se muestra el resultado en un modal de Bootstrap.
+ * ========================================================================== */
+function verProfesorDeMateria(idMateria, nombreMateria) {
+    const url = `${API_URL}/${idMateria}/profesor`;
+    logPeticion("GET ▶", url);
+
+    // Abrimos el modal en estado "cargando"
+    $("#tituloProfesorModal").text(`#${idMateria} — ${nombreMateria}`);
+    $("#cuerpoProfesor").html(
+        '<div class="text-center py-3">' +
+        '<div class="spinner-border text-primary" role="status"></div>' +
+        '<p class="text-muted small mt-2 mb-0">Consultando profesor...</p></div>'
+    );
+    new bootstrap.Modal("#modalProfesor").show();
+
+    $.ajax({
+        url: url,
+        method: "GET",
+        dataType: "json",
+        success: function (data) {
+            if (data === null) {
+                logPeticion("GET ◀", `200 OK — sin contenido (materia ${idMateria} sin profesor)`);
+                $("#cuerpoProfesor").html(
+                    '<p class="text-muted mb-0">' +
+                    'Esta materia no tiene profesor asignado.</p>'
+                );
+                return;
+            }
+            logPeticion("GET ◀", `200 OK:\n${serializar(data)}`);
+            $("#cuerpoProfesor").html(`
+              <ul class="list-group list-group-flush">
+                <li class="list-group-item d-flex justify-content-between">
+                  <span class="text-muted">ID</span>
+                  <strong>${data.idProfesor}</strong>
+                </li>
+                <li class="list-group-item d-flex justify-content-between">
+                  <span class="text-muted">Nombre</span>
+                  <strong>${escapar(data.nombre)}</strong>
+                </li>
+                <li class="list-group-item d-flex justify-content-between">
+                  <span class="text-muted">Apellidos</span>
+                  <strong>${escapar(data.apellidos)}</strong>
+                </li>
+                <li class="list-group-item d-flex justify-content-between">
+                  <span class="text-muted">Dirección</span>
+                  <span>${data.direccion ? escapar(data.direccion) : '<span class="text-muted">—</span>'}</span>
+                </li>
+              </ul>`);
+        },
+        error: function (jqXHR) {
+            logPeticion("GET ✖", mensajeError(jqXHR));
+            $("#cuerpoProfesor").html(
+                '<div class="alert alert-danger mb-0">' + mensajeError(jqXHR) + '</div>'
+            );
+            mostrarMensaje("danger", "Error al consultar el profesor: " + mensajeError(jqXHR));
+        }
+    });
 }
 
 /* ==========================================================================

@@ -1,5 +1,6 @@
 package com.da.profemateria.dao;
 
+import com.da.profemateria.entity.Materia;
 import com.da.profemateria.entity.Profesor;
 import jakarta.persistence.EntityManager;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,5 +56,13 @@ public class ProfesorDAOImpl implements ProfesorDAO {
         TypedQuery<Profesor> query = entityManager.createQuery("From Profesor", Profesor.class);
         return query.getResultList();
     
+    }
+
+    @Override
+    public List<Materia> findMateriasByProfesor(int idProfesor) {
+        TypedQuery<Materia> query = entityManager.createQuery(
+                "FROM Materia m WHERE m.idProfesor = :idProfesor", Materia.class);
+        query.setParameter("idProfesor", idProfesor);
+        return query.getResultList();
     }
 }

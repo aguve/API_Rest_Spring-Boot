@@ -75,6 +75,10 @@ function renderizarTabla(profesores) {
 
         const celda = $("<td>").addClass("text-end");
 
+        const btnMaterias = $('<button class="btn btn-sm btn-outline-info me-1">')
+            .html('<i class="bi bi-journal-bookmark"></i> Materias')
+            .on("click", function () { verMateriasDeProfesor(p); });
+
         const btnEditar = $('<button class="btn btn-sm btn-outline-warning me-1">')
             .html('<i class="bi bi-pencil"></i> Editar')
             .on("click", function () { cargarEnFormulario(p); });
@@ -83,7 +87,7 @@ function renderizarTabla(profesores) {
             .html('<i class="bi bi-trash"></i> Eliminar')
             .on("click", function () { abrirModalEliminar(p); });
 
-        celda.append(btnEditar, btnEliminar);
+        celda.append(btnMaterias, btnEditar, btnEliminar);
         fila.append(celda);
         tbody.append(fila);
     });
@@ -133,11 +137,90 @@ function pintarResultadoBusqueda(p) {
         <div class="card-body py-2">
           <div class="row align-items-center">
             <div class="col-sm-4"><strong>#${p.idProfesor} ${escapar(p.nombre)} ${escapar(p.apellidos)}</strong></div>
-            <div class="col-sm-8">${p.direccion ? escapar(p.direccion) : '<span class="text-muted">Sin dirección</span>'}</div>
+            <div class="col-sm-5">${p.direccion ? escapar(p.direccion) : '<span class="text-muted">Sin dirección</span>'}</div>
+            <div class="col-sm-3 text-end">
+              <button class="btn btn-sm btn-outline-info" id="btnVerMateriasBusqueda">
+                <i class="bi bi-journal-bookmark"></i> Ver materias
+              </button>
+            </div>
           </div>
         </div>
       </div>`;
     $("#resultadoBusqueda").html(html);
+    $("#btnVerMateriasBusqueda").on("click", function () { verMateriasDeProfesor(p); });
+}
+
+/* ==========================================================================
+ * 2b. MATERIAS DE UN PROFESOR — GET /api/profesor/{id}/materias
+ * --------------------------------------------------------------------------
+ * Petición:  GET, el id del profesor va en la RUTA (subrecurso "materias").
+ * Respuesta: 200 + array JSON de materias (cada una con sus datos). Si el
+ *            profesor no tiene materias, la API devuelve un array vacío [].
+ * Se muestra el listado en un modal de Bootstrap.
+ * ========================================================================== */
+function verMateriasDeProfesor(p) {
+    const url = `${API_URL}/${p.idProfesor}/materias`;
+    logPeticion("GET ▶", url);
+
+    $("#tituloMateriasModal").text(`#${p.idProfesor} — ${p.nombre} ${p.apellidos}`);
+    $("#cuerpoMaterias").html(
+        '<div class="text-center py-3">' +
+        '<div class="spinner-border text-primary" role="status"></div>' +
+        '<p class="text-muted small mt-2 mb-0">Consultando materias...</p></div>'
+    );
+    new bootstrap.Modal("#modalMaterias").show();
+
+    $.ajax({
+        url: url,
+        method: "GET",
+        dataType: "json",
+        success: function (data) {
+            logPeticion("GET ◀", `200 OK:\n${serializar(data)}`);
+
+            if (!data || data.length === 0) {
+                $("#cuerpoMaterias").html(
+                    '<p class="text-muted mb-0">' +
+                    'Este profesor no imparte ninguna materia.</p>'
+                );
+                return;
+            }
+
+            let filas = "";
+            data.forEach(function (m) {
+                filas += `<tr>
+                    <td>${m.idMateria}</td>
+                    <td>${escapar(m.nombre)}</td>
+                    <td class="text-center"><span class="badge bg-primary">${m.creditos}</span></td>
+                    <td class="text-center"><span class="badge bg-info text-dark">${m.horasCatedra}</span></td>
+                  </tr>`;
+            });
+
+            $("#cuerpoMaterias").html(`
+              <div class="table-responsive">
+                <table class="table table-sm table-striped align-middle mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th>ID</th>
+                      <th>Materia</th>
+                      <th class="text-center">Créditos</th>
+                      <th class="text-center">Horas</th>
+                    </tr>
+                  </thead>
+                  <tbody>${filas}</tbody>
+                </table>
+              </div>
+              <p class="text-muted small mt-2 mb-0">
+                Total: <strong>${data.length}</strong> materia(s).
+              </p>`);
+        },
+        error: function (jqXHR) {
+            logPeticion("GET ✖", mensajeError(jqXHR));
+            $("#cuerpoMaterias").html(
+                '<div class="alert alert-danger mb-0">' + mensajeError(jqXHR) + '</div>'
+            );
+            mostrarMensaje("danger", "Error al consultar las materias: " + mensajeError(jqXHR));
+        }
+    });
 }
 
 /* ==========================================================================

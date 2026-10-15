@@ -2,6 +2,7 @@ package com.da.profemateria.rest;
 
 import com.da.profemateria.dao.MateriaDAO;
 import com.da.profemateria.entity.Materia;
+import com.da.profemateria.entity.Profesor;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -34,6 +35,12 @@ public class MateriaRestController {
     @GetMapping("/materias/{id}")
     public Materia findById(@PathVariable int id) {
         return materiaDAO.findById(id);
+    }
+
+    /** Profesor que imparte la materia indicada. */
+    @GetMapping("/materias/{id}/profesor")
+    public Profesor findProfesorByMateria(@PathVariable int id) {
+        return materiaDAO.findProfesorByMateria(id);
     }
 
     @PostMapping("/materias")

@@ -212,6 +212,32 @@
     </div>
   </div>
 
+  <!-- ===================== MODAL: PROFESOR QUE IMPARTE LA MATERIA ============ -->
+  <div class="modal fade" id="modalProfesor" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title">
+            <i class="bi bi-person-badge"></i> Profesor que imparte la materia
+            <span class="small d-block fw-normal" id="tituloProfesorModal"></span>
+          </h5>
+          <button type="button" class="btn-close btn-close-white"
+                  data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body" id="cuerpoProfesor">
+          Cargando...
+        </div>
+        <div class="modal-footer">
+          <span class="text-muted small me-auto">
+            <code>GET /api/materias/{id}/profesor</code>
+          </span>
+          <button type="button" class="btn btn-secondary"
+                  data-bs-dismiss="modal">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ===================== CONSOLA DE PETICIONES (AJAX) ===================== -->
   <section class="container mb-5">
     <div class="card shadow-sm border-info">

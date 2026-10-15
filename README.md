@@ -180,6 +180,8 @@ enlazadas por la barra de navegación superior:
 - Buscar una materia por ID
 - Crear (`POST`) y editar (`PUT`) materias desde un formulario
 - Eliminar con confirmación (`DELETE`)
+- Ver el **profesor** que imparte la materia (botón *Profesor* → modal;
+  `GET /api/materias/{id}/profesor`)
 
 ### Profesores — `profesores.html` (`GET /api/profesor`)
 
@@ -187,6 +189,8 @@ enlazadas por la barra de navegación superior:
 - Buscar un profesor por ID
 - Crear (`POST`) y editar (`PUT`) profesores desde un formulario
   (nombre, apellidos, dirección opcional)
+- Ver las **materias** que imparte el profesor (botón *Materias* → modal;
+  `GET /api/profesor/{id}/materias`)
 - Eliminar con confirmación (`DELETE`); si el profesor tiene materias
   asignadas, la API responde 500 (clave foránea) y no se elimina
 
@@ -229,6 +233,7 @@ Base URL: `http://localhost:8080/api`
 | POST | `/api/materias` | Crea una materia | Objeto JSON sin `idMateria` | Objeto creado (con `idMateria`) |
 | PUT | `/api/materias` | Actualiza una materia | Objeto JSON con `idMateria` | Objeto actualizado |
 | DELETE | `/api/materias/{id}` | Elimina una materia | — | Texto plano |
+| GET | `/api/materias/{id}/profesor` | Profesor que imparte la materia | — | Objeto JSON `Profesor` (vacío si no existe) |
 
 ### Profesores — `/api/profesor`
 
@@ -239,6 +244,7 @@ Base URL: `http://localhost:8080/api`
 | POST | `/api/profesor` | Crea un profesor | Objeto JSON sin `idProfesor` | Objeto creado (con `idProfesor`) |
 | PUT | `/api/profesor` | Actualiza un profesor | Objeto JSON con `idProfesor` | Objeto actualizado |
 | DELETE | `/api/profesor/{id}` | Elimina un profesor | — | Texto plano |
+| GET | `/api/profesor/{id}/materias` | Materias que imparte el profesor | — | Array JSON (vacío `[]` si no imparte ninguna) |
 
 Ejemplo de materia en JSON:
 

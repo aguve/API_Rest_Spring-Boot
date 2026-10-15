@@ -1,6 +1,7 @@
 package com.da.profemateria.dao;
 
 import com.da.profemateria.entity.Materia;
+import com.da.profemateria.entity.Profesor;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
 import java.util.List;
@@ -56,6 +57,12 @@ public class MateriaDAOImpl implements MateriaDAO {
     public List<Materia> findAll() {
         TypedQuery<Materia> query = entityManager.createQuery("FROM Materia", Materia.class);
         return query.getResultList();
+    }
+
+    @Override
+    public Profesor findProfesorByMateria(int idMateria) {
+        Materia materia = entityManager.find(Materia.class, idMateria);
+        return (materia != null) ? materia.getProfesor() : null;
     }
 
 }

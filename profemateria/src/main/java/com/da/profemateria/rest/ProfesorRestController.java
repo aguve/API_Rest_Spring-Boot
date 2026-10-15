@@ -1,6 +1,7 @@
 package com.da.profemateria.rest;
 
 import com.da.profemateria.dao.ProfesorDAO;
+import com.da.profemateria.entity.Materia;
 import com.da.profemateria.entity.Profesor;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +33,12 @@ public class ProfesorRestController {
     @GetMapping("/profesor/{id}")
     public Profesor findById(@PathVariable int id){
         return profesorDAO.findById(id);
+    }
+
+    /** Materias que imparte el profesor indicado. */
+    @GetMapping("/profesor/{id}/materias")
+    public List<Materia> findMateriasByProfesor(@PathVariable int id){
+        return profesorDAO.findMateriasByProfesor(id);
     }
     
     @PostMapping("/profesor")
