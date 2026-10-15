@@ -2,9 +2,12 @@ package com.da.profemateria.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 @Entity
@@ -27,6 +30,11 @@ public class Materia {
 
     @Column(name = "id_profesor")
     private int idProfesor;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "id_profesor", referencedColumnName = "id",
+                insertable = false, updatable = false)
+    private Profesor profesor;
 
     public Materia() {
     }
@@ -76,6 +84,14 @@ public class Materia {
 
     public void setIdProfesor(int idProfesor) {
         this.idProfesor = idProfesor;
+    }
+
+    public Profesor getProfesor() {
+        return profesor;
+    }
+
+    public void setProfesor(Profesor profesor) {
+        this.profesor = profesor;
     }
 
 }

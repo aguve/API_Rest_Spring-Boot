@@ -66,5 +66,5 @@ public class Profesor{
     public void setDireccion(String direccion) {
         this.direccion = direccion;
     }
-    
+}
 
