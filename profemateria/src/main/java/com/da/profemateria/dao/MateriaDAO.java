@@ -12,6 +12,9 @@ public interface MateriaDAO {
     void delete(int id);
     List<Materia> findAll();
 
+    /** Materias impartidas por el profesor indicado. */
+    List<Materia> findByProfesor(int idProfesor);
+
     /** Devuelve el profesor que imparte la materia con ese id. */
     Profesor findProfesorByMateria(int idMateria);
 

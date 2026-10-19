@@ -60,6 +60,14 @@ public class MateriaDAOImpl implements MateriaDAO {
     }
 
     @Override
+    public List<Materia> findByProfesor(int idProfesor) {
+        TypedQuery<Materia> query = entityManager.createQuery(
+                "FROM Materia m WHERE m.idProfesor = :idProfesor ORDER BY m.idMateria", Materia.class);
+        query.setParameter("idProfesor", idProfesor);
+        return query.getResultList();
+    }
+
+    @Override
     public Profesor findProfesorByMateria(int idMateria) {
         Materia materia = entityManager.find(Materia.class, idMateria);
         return (materia != null) ? materia.getProfesor() : null;
