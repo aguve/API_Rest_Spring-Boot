@@ -152,6 +152,7 @@ spring.config.import=optional:file:./.env[.properties]
 spring.datasource.url=${DB_URL}
 spring.datasource.username=${DB_USERNAME}
 spring.datasource.password=${DB_PASSWORD}
+server.port=${SERVER_PORT:8080}       # opcional: 8080 si no se define
 ```
 
 Crea tu `.env` a partir de la plantilla:
@@ -166,6 +167,7 @@ y rellena los valores:
 DB_URL=jdbc:mysql://host.docker.internal:3306/api_rest_spring-boot
 DB_USERNAME=root
 DB_PASSWORD=tu_password
+SERVER_PORT=8080
 ```
 
 | Variable | Descripción |
@@ -173,10 +175,13 @@ DB_PASSWORD=tu_password
 | `DB_URL` | URL JDBC de conexión a MySQL. Usa `localhost` si la BD está en tu máquina; `host.docker.internal` si la app corre en Docker y MySQL en el host. |
 | `DB_USERNAME` | Usuario de MySQL |
 | `DB_PASSWORD` | Contraseña de MySQL |
+| `SERVER_PORT` | Puerto HTTP de la API y el frontend (opcional). Si no existe, se usa **8080**. Útil cuando el 8080 está ocupado por otro proceso. |
 
-> Si no quieres usar `.env`, puedes definir estas tres variables en el
-> entorno del sistema (útil en CI/Docker). Si no defines ninguna, el arranque
-> fallará con *"Could not resolve placeholder 'DB_URL'"*.
+> Si no quieres usar `.env`, puedes definir estas variables en el
+> entorno del sistema (útil en CI/Docker). Si no defines `DB_URL`/`DB_*`, el
+> arranque fallará con *"Could not resolve placeholder 'DB_URL'"*;
+> `SERVER_PORT`, en cambio, **tiene valor por defecto** (8080) y no hace
+> falta definirla.
 
 ---
 
@@ -248,7 +253,9 @@ cd profemateria
 mvnw.cmd spring-boot:run        # Windows
 ```
 
-La aplicación arranca en **<http://localhost:8080>**.
+La aplicación arranca en **<http://localhost:8080>** (puerto por defecto;
+si defines `SERVER_PORT` en `.env` —p. ej. `8088`— sustitúyelo en todas las
+URLs):
 
 - **Login (punto de entrada):** <http://localhost:8080/login.html>
 - **Materias:** <http://localhost:8080/index.html> — DIRECTOR y PROFESOR
@@ -346,7 +353,8 @@ ese documento**.
 
 ## API REST
 
-Base URL: `http://localhost:8080/api`
+Base URL: `http://localhost:8080/api` (o `http://localhost:<SERVER_PORT>/api`
+si has cambiado el puerto en `.env`)
 
 Todas las rutas exigen sesión salvo `/api/auth/login` (y los estáticos).
 Sin sesión → `401`; sin el rol adecuado → `403` (JSON, ver

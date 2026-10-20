@@ -35,7 +35,7 @@
 │      │      · envía peticiones HTTP                (XHR)                 │
 │      │      · parsea las respuestas a objetos JS  (JSON.parse)           │
 └──────┼─────────────────────────────┼──────────────────────────────────────┘
-       │  HTTP/1.1 (puerto 8080, mismo origen · cookie JSESSIONID)
+       │  HTTP/1.1 (puerto 8080 por defecto, mismo origen · cookie JSESSIONID)
        ▼
 ┌──────────────────────────── SPRING BOOT ──────────────────────────────────┐
 │  SecurityFilterChain (SecurityConfig) ── sin sesión → 401 JSON            │
@@ -601,7 +601,7 @@ hora, verbo, URL, body enviado y respuesta recibida.
 
 Las credenciales de MySQL **no** se guardan en `application.properties`.
 Este archivo solo declara variables (`${DB_URL}`, `${DB_USERNAME}`,
-`${DB_PASSWORD}`) y carga un `.env` local:
+`${DB_PASSWORD}`, `${SERVER_PORT}`) y carga un `.env` local:
 
 ```properties
 # application.properties
@@ -609,6 +609,7 @@ spring.config.import=optional:file:./.env[.properties]
 spring.datasource.url=${DB_URL}
 spring.datasource.username=${DB_USERNAME}
 spring.datasource.password=${DB_PASSWORD}
+server.port=${SERVER_PORT:8080}       # opcional: 8080 si no se define
 ```
 
 1. Copiar la plantilla y rellenarla:
@@ -620,14 +621,22 @@ spring.datasource.password=${DB_PASSWORD}
    DB_URL=jdbc:mysql://host.docker.internal:3306/api_rest_spring-boot
    DB_USERNAME=root
    DB_PASSWORD=tu_password
+   SERVER_PORT=8088                    # opcional; sin ella, la app usa 8080
    ```
 
 > `spring.config.import=optional:file:./.env[.properties]` hace que Spring
 > Boot lea el `.env` como si fuera un `.properties` (el sufijo `[.properties]`
 > es el *extension hint*, porque el archivo no tiene extensión). `optional:`
 > evita el fallo si no existe; en ese caso se usarían variables de entorno
-> del sistema (útil en CI/Docker). Si no se define ninguna de las dos, el
+> del sistema (útil en CI/Docker). Si no se define ninguna de las `DB_*`, el
 > arranque falla con *"Could not resolve placeholder 'DB_URL'"*.
+>
+> **`SERVER_PORT`** es opcional: el puerto lo fija `server.port` con **8080
+> por defecto**, y sólo cambia si defines la variable en `.env` (p. ej.
+> `SERVER_PORT=8088` cuando el 8080 lo ocupa otro proceso). Todas las URLs de
+> esta documentación usan `localhost:8080`; si has cambiado el puerto,
+> sustitúyelo en navegador y `curl`. El puerto **no** afecta a las rutas
+> relativas del frontend (`/api/...`), que se piden siempre al mismo origen.
 
 ### 8.2 Arrancar
 
@@ -636,10 +645,11 @@ cd profemateria
 ./mvnw spring-boot:run
 ```
 
-1. Abrir **<http://localhost:8080/login.html>** y entrar con el usuario
-   correspondiente (ADMIN `1000`, o el director/profesor dado de alta).
-   Cada usuario aterriza en la página de su rol; si aún no cambió la
-   contraseña, en `cambiar-password.html`.
+1. Abrir **<http://localhost:8080/login.html>** (o
+   `http://localhost:<SERVER_PORT>/login.html` si cambió el puerto) y entrar
+   con el usuario correspondiente (ADMIN `1000`, o el director/profesor dado
+   de alta). Cada usuario aterriza en la página de su rol; si aún no cambió
+   la contraseña, en `cambiar-password.html`.
 2. Cada página carga su listado automáticamente (`GET /api/materias`,
    `GET /api/profesor` o `GET /api/admin/directores`) y sólo tras pasar la
    guardia `Sesion.iniciar({ roles: [...] })`.
@@ -657,7 +667,9 @@ crea solo al arrancar.
 ## 9. Pruebas rápidas con curl (equivalente manual de cada AJAX)
 
 Todo requiere sesión: primero haz **login** (el `username` es el `user_id`)
-y reutiliza la cookie en las siguientes llamadas con `-b`.
+y reutiliza la cookie en las siguientes llamadas con `-b`. Los ejemplos usan
+`localhost:8080` (puerto por defecto); si defines `SERVER_PORT` en `.env`,
+sustitúyelo por el tuyo.
 
 ```bash
 # ===== 1) SESIÓN =====
