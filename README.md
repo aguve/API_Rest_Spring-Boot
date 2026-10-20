@@ -1,7 +1,7 @@
 # API REST Spring Boot — Profematerias
 
 API REST sencilla de gestión de **materias** y **profesores** construida con
-**Spring Boot + JPA + MySQL**, y un frontend en **HTML + Bootstrap + AJAX**
+**Spring Boot + Spring Security + JPA + MySQL**, y un frontend en **HTML + Bootstrap + AJAX**
 servido por la propia aplicación.
 
 Recursos expuestos:
