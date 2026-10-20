@@ -2,16 +2,23 @@
 
 > **Proyecto:** `profemateria` (Spring Boot 4.1.1 · Java 21 · MySQL)
 > **Frontend:** HTML + Bootstrap 5 + AJAX (jQuery `$.ajax`)
->
-> Dos recursos con su propia página: **Materias** y **Profesores**.
+> **Sesión:** Spring Security con cookie `JSESSIONID` y 3 roles
+> (`ADMIN`, `DIRECTOR`, `PROFESOR`) — ver sección 2.
 >
 > | Archivo | Ruta | Contenido |
 > |---|---|---|
-> | `index.html` | `profemateria/src/main/resources/static/index.html` | Vista de **Materias** |
-> | `profesores.html` | `profemateria/src/main/resources/static/profesores.html` | Vista de **Profesores** |
+> | `login.html` | `profemateria/src/main/resources/static/login.html` | **Acceso** (punto de entrada, sin sesión) |
+> | `index.html` | `profemateria/src/main/resources/static/index.html` | Vista de **Materias** (DIRECTOR/PROFESOR) |
+> | `profesores.html` | `profemateria/src/main/resources/static/profesores.html` | Vista de **Profesores** (DIRECTOR) |
+> | `directores.html` | `profemateria/src/main/resources/static/directores.html` | Alta/listado de **directores** (ADMIN) |
+> | `cambiar-password.html` | `profemateria/src/main/resources/static/cambiar-password.html` | Cambio de contraseña (primer acceso) |
+> | `sesion.js` | `profemateria/src/main/resources/static/js/sesion.js` | Guardia de sesión/roles (`Sesion.iniciar`) y logout |
+> | `login.js` | `profemateria/src/main/resources/static/js/login.js` | AJAX de `POST /api/auth/login` |
+> | `cambiar-password.js` | `profemateria/src/main/resources/static/js/cambiar-password.js` | AJAX de `POST /api/auth/password` |
 > | `app.js` | `profemateria/src/main/resources/static/js/app.js` | AJAX de Materias (`/api/materias`) |
 > | `profesores.js` | `profemateria/src/main/resources/static/js/profesores.js` | AJAX de Profesores (`/api/profesor`) |
-> | `common.js` | `profemateria/src/main/resources/static/js/common.js` | Utilidades AJAX compartidas por ambas páginas |
+> | `directores.js` | `profemateria/src/main/resources/static/js/directores.js` | AJAX de Directores (`/api/admin/directores`) |
+> | `common.js` | `profemateria/src/main/resources/static/js/common.js` | Utilidades AJAX compartidas + redirección global 401/403 |
 > | `style.css` | `profemateria/src/main/resources/static/css/style.css` | Estilos propios |
 
 ---
@@ -28,9 +35,12 @@
 │      │      · envía peticiones HTTP                (XHR)                 │
 │      │      · parsea las respuestas a objetos JS  (JSON.parse)           │
 └──────┼─────────────────────────────┼──────────────────────────────────────┘
-       │  HTTP/1.1 (puerto 8080, mismo origen)
+       │  HTTP/1.1 (puerto 8080, mismo origen · cookie JSESSIONID)
        ▼
 ┌──────────────────────────── SPRING BOOT ──────────────────────────────────┐
+│  SecurityFilterChain (SecurityConfig) ── sin sesión → 401 JSON            │
+│  ForzarCambioPasswordFilter ── password_changed=0 → 403 JSON              │
+│  AuthRestController(/api/auth)   AdminRestController (/api/admin)         │
 │  MateriaRestController (/api/materias)   ProfesorRestController(/api/profesor)│
 │      · @RequestBody  → Jackson deserializa JSON  → objeto entidad        │
 │      · @ResponseBody → Jackson serializa objeto  → JSON                  │
@@ -46,15 +56,119 @@
 
 **Dato clave:** los HTML se sirven desde la **misma** aplicación Spring Boot
 (`src/main/resources/static`), así que no hay problema de CORS en el uso
-normal. Además ambos controladores llevan `@CrossOrigin(origins = "*")` para
-permitir abrir las páginas desde otro origen (por ejemplo, un servidor de
+normal **y la cookie de sesión funciona sin ajustes** (mismo origen). Además
+los controladores de materias y profesores llevan `@CrossOrigin(origins = "*")`
+para permitir abrir las páginas desde otro origen (por ejemplo, un servidor de
 estáticos separado).
 
 ---
 
-## 2. Cómo se transmite cada dato
+## 2. Sesión, autenticación y roles
 
-### 2.1 Objeto JavaScript → HTTP request (salida)
+### 2.1 Flujo de acceso
+
+```
+login.html ── POST /api/auth/login {username, password} ──▶ cookie JSESSIONID
+     │
+     ├─ passwordChanged = false ──▶ cambiar-password.html
+     │        └── POST /api/auth/password {nuevaPassword} ──▶ inicio del rol
+     │
+     └─ passwordChanged = true
+            ├─ rol ADMIN     ──▶ directores.html
+            ├─ rol DIRECTOR  ──▶ index.html   (materias + profesores)
+            └─ rol PROFESOR  ──▶ index.html   (sólo sus materias)
+```
+
+El `username` del login **es el `user_id`** (numérico): `1000` para el
+administrador, y para directores/profesores el mismo id que su fila en
+`profesor`. La contraseña viaja en el body JSON (HTTP en local; usa HTTPS en
+producción) y se guarda cifrada con **BCrypt** en `users.password`. El login
+**rota la sesión** (invalida la cookie previa) para evitar fijación de
+sesión.
+
+### 2.2 Endpoints de sesión — `/api/auth` y `/api/admin`
+
+| Verbo | Ruta | Body (request) | Response `200` | Errores |
+|---|---|---|---|---|
+| POST | `/api/auth/login` | `{"username":"1000","password":"..."}` | datos de sesión | `401` credenciales |
+| GET | `/api/auth/me` | — | datos de sesión | `401` sin sesión |
+| POST | `/api/auth/logout` | — | `{"ok":true,"message":"Sesión cerrada"}` | — |
+| POST | `/api/auth/password` | `{"nuevaPassword":"nueva123"}` | `{"ok":true,"message":"Contraseña actualizada"}` | `400` (<6 caracteres), `401` |
+| GET | `/api/admin/directores` | — | array de directores | `401`, `403` si no es ADMIN |
+| POST | `/api/admin/directores` | `{"nombre","apellidos","direccion"}` | `{profesor, userId, rol, passwordPorDefecto, message}` | `400` campos vacíos, `403` |
+
+Datos de sesión (devueltos por `login` y `me`):
+
+```json
+{
+  "userId": 1000,
+  "username": "1000",
+  "authority": "ROLE_ADMIN",
+  "rol": "ADMIN",
+  "passwordChanged": false,
+  "passwordPorDefecto": "admin1234"
+}
+```
+
+`passwordPorDefecto` es `null` cuando `passwordChanged` ya es `true`
+(sólo se revela mientras el usuario tenga la contraseña de fábrica).
+
+Cuerpos de error de la capa de seguridad (JSON puro, sin HTML):
+
+```json
+{ "status": 401, "error": "No autenticado", "path": "/api/materias" }
+{ "status": 403, "error": "Acceso denegado", "path": "/api/profesor" }
+{ "status": 403, "error": "Debe cambiar su contraseña para continuar",
+  "code": "PASSWORD_CHANGE_REQUIRED", "path": "/api/materias" }
+```
+
+### 2.3 Matriz de acceso por recurso
+
+| Recurso | `ADMIN` | `DIRECTOR` | `PROFESOR` |
+|---|---|---|---|
+| `GET/POST/PUT/DELETE /api/materias` | `403` | todas | sólo las suyas (`id_profesor` = su id) |
+| `GET/POST/PUT/DELETE /api/profesor` | `403` | sí | `403` |
+| `GET/POST /api/admin/directores` | sí | `403` | `403` |
+| `POST /api/auth/login` | público (sin sesión) | — | — |
+| `GET /api/auth/me`, `POST .../logout`, `POST .../password` | sesión válida | sesión válida | sesión válida |
+| `login.html` / `cambiar-password.html` | sí | sí | sí |
+| `index.html` (Materias) | redirige a `directores.html` | sí | sí |
+| `profesores.html` | redirige | sí | redirige a `index.html` |
+| `directores.html` | sí | redirige a `index.html` | redirige a `index.html` |
+
+### 2.4 Cómo se aplica en el frontend
+
+- **Guardia de página** (`sesion.js`): cada página protegida arranca con
+  `Sesion.iniciar({ roles: [...] })`, que consulta `GET /api/auth/me` y sólo
+  resuelve el `Deferred` si el usuario puede quedarse; si no, redirige
+  (`401` → `login.html`, `passwordChanged = false` → `cambiar-password.html`,
+  rol no permitido → página de inicio de su rol).
+
+  ```js
+  Sesion.iniciar({ roles: ["DIRECTOR"] }).done(function (usuario) {
+      listarProfesores();   // sólo se ejecuta si pasó la guardia
+  });
+  ```
+
+- **Barra de navegación**: `Sesion.pintarBarra()` muestra el rol y el id del
+  usuario, y oculta cada elemento de menú con el atributo declarativo
+  `data-solo-rol="DIRECTOR,PROFESOR"` (sólo se muestra para esos roles). En
+  `index.html`, además, `app.js` oculta el campo *ID Profesor* y muestra un
+  aviso cuando el usuario es `PROFESOR` (la materia se le asigna sola).
+
+- **Redirección global** (`common.js`): un manejador `$(document).ajaxError`
+  convierte cualquier `401` en salto a `login.html` y cualquier `403` con
+  `code = "PASSWORD_CHANGE_REQUIRED"` en salto a `cambiar-password.html`
+  (sin bucle dentro de esas dos páginas). Así, aunque un endpoint falle en
+  mitad de una acción, el usuario siempre cae en la pantalla correcta.
+
+- **Logout**: `Sesion.salir()` → `POST /api/auth/logout` → `location.replace("login.html")`.
+
+---
+
+## 3. Cómo se transmite cada dato
+
+### 3.1 Objeto JavaScript → HTTP request (salida)
 
 En `common.js` la función `serializar()` aplica `JSON.stringify()` (la usan
 tanto `app.js` como `profesores.js`):
@@ -99,7 +213,7 @@ $.ajax({
 > fijamos `contentType` a mano, jQuery no intenta convertir el objeto a
 > `application/x-www-form-urlencoded`.
 
-### 2.2 HTTP request → objeto Java (entrada al backend)
+### 3.2 HTTP request → objeto Java (entrada al backend)
 
 Spring recibe el body y lo convierte con **Jackson**:
 
@@ -127,7 +241,7 @@ petición terminaría igualmente en 200. Por eso
 `obtenerDatosDelFormulario()` (`app.js:257`) usa los nombres camelCase
 exactos.
 
-### 2.3 Respuesta HTTP → objeto JavaScript (entrada al navegador)
+### 3.3 Respuesta HTTP → objeto JavaScript (entrada al navegador)
 
 ```java
 return materia;   // MateriaRestController
@@ -143,17 +257,21 @@ success: function (data) {   // data ya es { idMateria: 1, nombre: "..." }
 
 ---
 
-## 3. Endpoints y flujo de cada operación
+## 4. Endpoints y flujo de cada operación
 
 **Base URL:** `/api/materias` (relativa al origen de la página).
 
-### 3.1 LISTAR — `GET /api/materias`
+### 4.1 LISTAR — `GET /api/materias`
 
 | Fase | Qué viaja |
 |---|---|
 | Request | `GET /api/materias` — sin body, sin `Content-Type` |
-| Backend | `materiaDAO.findAll()` → `SELECT * FROM materia` |
+| Backend | DIRECTOR → `materiaDAO.findAll()` · PROFESOR → `materiaDAO.findByProfesor(id)` (`WHERE id_profesor = su id`) |
 | Response | `200 OK`, `Content-Type: application/json`, **array** |
+
+> Con sesión de **PROFESOR** el array sólo contiene **sus** materias: el
+> filtrado lo hace el backend, no el frontend. Un `ADMIN` recibe `403`.
+> Sin sesión: `401` JSON (ver sección 2).
 
 ```json
 [
@@ -196,7 +314,7 @@ success: function (data) {   // data ya es { idMateria: 1, nombre: "..." }
 
 Código: `listarMaterias()` → `app.js:33` · render en `renderizarTabla()` → `app.js:60`.
 
-### 3.2 BUSCAR UNO — `GET /api/materias/{id}`
+### 4.2 BUSCAR UNO — `GET /api/materias/{id}`
 
 | Fase | Qué viaja |
 |---|---|
@@ -209,7 +327,7 @@ y el controlador no tiene `@ResponseStatus(NOT_FOUND)`, así que la API
 responde `200` con el body vacío. El frontend lo detecta en
 `app.js:121` (`if (data === null)`) y muestra un aviso.
 
-### 3.3 CREAR — `POST /api/materias`
+### 4.3 CREAR — `POST /api/materias`
 
 Flujo completo de la transmisión:
 
@@ -217,7 +335,7 @@ Flujo completo de la transmisión:
 1. El usuario rellena el formulario de index.html
 2. submit → e.preventDefault()                        (app.js:334)
 3. validarFormulario("#formMateria") — Constraint Validation de HTML5
-      (el backend NO valida: lo que llegue se persiste tal cual)
+      (el backend no valida campos, sólo reglas de negocio — ver sección 7)
 4. obtenerDatosDelFormulario() → objeto JS             (app.js:257)
       { nombre, creditos, horasCatedra, idProfesor }   ← SIN idMateria
 5. JSON.stringify(datos)  → texto JSON
@@ -237,7 +355,7 @@ Flujo completo de la transmisión:
 Nota: en modo creación se hace `delete datos.idMateria` (`app.js:343`) para
 no mandar `idMateria: 0` (innecesario; la BD asigna el id).
 
-### 3.4 ACTUALIZAR — `PUT /api/materias`
+### 4.4 ACTUALIZAR — `PUT /api/materias`
 
 Mismo body que POST **pero con `idMateria` incluido** (el identificador viaja
 dentro del JSON, no en la URL):
@@ -252,7 +370,7 @@ existe, `entityManager.merge()` **inserta una fila nueva** (comportamiento
 
 Código: `actualizarMateria()` → `app.js:194`.
 
-### 3.5 ELIMINAR — `DELETE /api/materias/{id}`
+### 4.5 ELIMINAR — `DELETE /api/materias/{id}`
 
 | Fase | Qué viaja |
 |---|---|
@@ -268,7 +386,7 @@ Por eso el AJAX declara `dataType: "text"` (`app.js:233`): si se pidiera
 `"json"`, jQuery fallaría al hacer `JSON.parse("Materia eliminada - id: 3")`.
 La UI abre antes un modal de confirmación (`abrirModalEliminar()` → `app.js:307`).
 
-### 3.6 Recurso Profesor — `/api/profesor`
+### 4.6 Recurso Profesor — `/api/profesor`
 
 Se gestiona desde **`profesores.html` + `profesores.js`**. Las reglas de
 transmisión son idénticas a las de Materias (mismo `$.ajax`, mismo
@@ -287,9 +405,35 @@ Entidad `Profesor` (JSON ↔ Java ↔ MySQL):
 |---|---|---|---|---|
 | GET | `/api/profesor` | — | array JSON | `"json"` |
 | GET | `/api/profesor/{id}` | id en la ruta | objeto JSON o vacío | `"json"` |
-| POST | `/api/profesor` | objeto **sin** `idProfesor` | objeto creado (con id) | `"json"` |
+| POST | `/api/profesor` | objeto **sin** `idProfesor` | objeto del profesor **+** `userId`, `rol`, `passwordPorDefecto`, `message` | `"json"` |
 | PUT | `/api/profesor` | objeto **con** `idProfesor` | objeto actualizado | `"json"` |
 | DELETE | `/api/profesor/{id}` | id en la ruta, sin body | **texto plano** | `"text"` |
+
+⚠️ **El POST ya no devuelve sólo el profesor**: además crea su usuario en
+`users`/`authorities` (`ROLE_PROFESOR`, `password_changed = 0`) y lo refleja
+en la respuesta:
+
+```json
+{
+  "idProfesor": 5, "nombre": "Ana", "apellidos": "Gómez", "direccion": null,
+  "userId": 5, "rol": "PROFESOR", "passwordPorDefecto": "1234",
+  "message": "Profesor dado de alta. Inicie sesión con la contraseña por defecto y cámbiela en el primer acceso."
+}
+```
+
+La respuesta completa queda registrada en la **consola de peticiones** de la
+página (el aviso de éxito sólo muestra nombre e id). El `userId` y la
+`passwordPorDefecto` son para que el director se los comunique al profesor;
+en `directores.html` sí hay un modal dedicado con esos datos. Si la creación
+del usuario falla (p. ej. id duplicado), el backend **deshace el alta** del
+profesor (rollback manual) y devuelve `400` con `message`.
+
+Restricciones de negocio (devuelven `403` JSON vía `ApiExceptionHandler`):
+
+- Un **DIRECTOR no puede editarse ni darse de baja a sí mismo** desde
+  `profesores.html` (debe hacerlo el ADMIN desde `directores.html`).
+- El propio `ADMIN` no tiene acceso a `/api/profesor/**` (lo impide la cadena
+  de seguridad).
 
 Ejemplo de respuesta de `GET /api/profesor`:
 
@@ -305,16 +449,18 @@ El DELETE responde texto plano, p. ej. `Profesor eliminado - id 3` (por eso
 
 ⚠️ **Clave foránea:** `materia.id_profesor → profesor.id`. Si se intenta
 borrar un profesor que tiene materias asignadas, MySQL rechaza el `DELETE`
-(HTTP 500) y el registro **no** se elimina. La página lo avisa en el modal.
+(HTTP 500) y el registro **no** se elimina (tampoco se toca su usuario). La
+página lo avisa en el modal. Si el borrado se ejecuta, el backend elimina
+también las filas del usuario en `authorities`/`users`.
 
 Código: `listarProfesores()` → `profesores.js:30` · `crearProfesor()` →
 `profesores.js:150` · `actualizarProfesor()` → `profesores.js:181` ·
 `eliminarProfesor()` → `profesores.js:214` · `verMateriasDeProfesor()` →
-`profesores.js` (subrecurso, ver 3.7).
+`profesores.js` (subrecurso, ver 4.7).
 
 ---
 
-### 3.7 Endpoints de relación (subrecurso)
+### 4.7 Endpoints de relación (subrecurso)
 
 Ambos endpoints explotan la relación `@ManyToOne` `Materia → Profesor` y se
 consumen solo con **GET** (no tienen body de petición): el id va en la ruta y
@@ -359,7 +505,7 @@ botón *Profesor* de cada fila (y de la búsqueda) llama a
 
 ---
 
-## 4. Matriz resumen de la transmisión
+## 5. Matriz resumen de la transmisión
 
 | Operación | Verbo | Ruta | Body (request) | Content-Type request | Body (response) | Content-Type response | `dataType` jQuery |
 |---|---|---|---|---|---|---|---|
@@ -370,25 +516,39 @@ botón *Profesor* de cada fila (y de la búsqueda) llama a
 | Eliminar | DELETE | `/api/materias/{id}` | — | — | texto plano | `text/plain` | `"text"` |
 | Listar | GET | `/api/profesor` | — | — | array JSON | `application/json` | `"json"` |
 | Buscar | GET | `/api/profesor/{id}` | — | — | objeto JSON o vacío | `application/json` | `"json"` |
-| Crear | POST | `/api/profesor` | objeto **sin** `idProfesor` | `application/json` | objeto con `idProfesor` nuevo | `application/json` | `"json"` |
+| Crear | POST | `/api/profesor` | objeto **sin** `idProfesor` | `application/json` | profesor + `userId`, `rol`, `passwordPorDefecto` | `application/json` | `"json"` |
 | Actualizar | PUT | `/api/profesor` | objeto **con** `idProfesor` | `application/json` | objeto actualizado | `application/json` | `"json"` |
 | Eliminar | DELETE | `/api/profesor/{id}` | — | — | texto plano | `text/plain` | `"text"` |
 | Profesor de la materia | GET | `/api/materias/{id}/profesor` | — | — | objeto JSON o vacío | `application/json` | `"json"` |
 | Materias del profesor | GET | `/api/profesor/{id}/materias` | — | — | array JSON | `application/json` | `"json"` |
 
+> Todas las filas de esta tabla asumen una **sesión válida con el rol adecuado**;
+> sin ella la respuesta es `401`/`403` en JSON. Los endpoints de sesión
+> (`/api/auth`) y de administración (`/api/admin`) están en la
+> [sección 2](#2-sesión-autenticación-y-roles).
+
 ---
 
-## 5. Manejo de errores
+## 6. Manejo de errores
 
-El backend **no tiene** `@ControllerAdvice` ni `@ExceptionHandler`: los
-errores usan el JSON por defecto de Spring Boot:
+Hay **tres fuentes** de error, todas ellas en JSON (nunca HTML de error):
+
+1. **Capa de seguridad** (`SecurityConfig`, filtros) → `401` sin sesión,
+   `403` sin rol y `403` con `code = "PASSWORD_CHANGE_REQUIRED"`.
+2. **`ApiExceptionHandler`** (`@RestControllerAdvice`) → traduce
+   `NoAutorizadoException` a `403` e `IllegalStateException` a `400`,
+   siempre con `{status, error, message, path}`.
+3. **JSON por defecto de Spring Boot** para el resto (type mismatch, rutas
+   inexistentes, `500` por violación de FK…). Gracias a
+   `server.error.include-message=always` el campo `message` también viaja:
 
 ```json
 {
   "timestamp": "2026-10-15T10:00:00.000+00:00",
   "status": 400,
   "error": "Bad Request",
-  "path": "/api/materias/abc"
+  "message": "Required request body is missing",
+  "path": "/api/materias"
 }
 ```
 
@@ -396,34 +556,48 @@ Situaciones posibles y su comportamiento:
 
 | Causa | HTTP | Cuerpo | Reacción del frontend |
 |---|---|---|---|
-| JSON malformado / id no numérico | 400 | JSON de error de Spring | `error:` → alerta roja con `mensajeError()` (`common.js:81`) |
-| `idProfesor` inexistente al crear materia (violación FK) | 500 | JSON/HTML de error | alerta roja; el registro **no** se crea |
-| Borrar profesor con materias asignadas (violación FK) | 500 | JSON/HTML de error | alerta roja; el profesor **no** se elimina |
+| Sin sesión / cookie caducada | 401 | `{"status":401,"error":"No autenticado",...}` | salto a `login.html` (`ajaxError` global en `common.js`) |
+| Rol insuficiente (p. ej. PROFESOR en `/api/profesor`) | 403 | `{"status":403,"error":"Acceso denegado",...}` o `{"message":"Sólo puede gestionar sus propias materias…"}` | alerta roja con `mensajeError()` |
+| Contraseña por defecto sin renovar | 403 | `code: "PASSWORD_CHANGE_REQUIRED"` | salto a `cambiar-password.html` |
+| Contraseña < 6 caracteres / campos de alta vacíos / usuario duplicado | 400 | `{"status":400,"error":"…","message":"…"}` | alerta roja con el `message` |
+| Login con credenciales incorrectas | 401 | `{"status":401,"error":"Usuario o contraseña incorrectos"}` | alerta roja en `login.html` |
+| JSON malformado / id no numérico | 400 | JSON de error de Spring | alerta roja con `mensajeError()` |
+| `idProfesor` inexistente al crear materia (violación FK) | 500 | JSON de error de Spring | alerta roja; el registro **no** se crea |
+| Borrar profesor con materias asignadas (violación FK) | 500 | JSON de error de Spring | alerta roja; el profesor **no** se elimina |
 | Backend caído / puerto cerrado | 0 | — | "No se pudo contactar con la API…" |
 | ID inexistente en búsqueda | 200 | body vacío | aviso ámbar "No existe ninguna materia con ID n" |
 | ID inexistente en endpoint de relación | 200 | body vacío / `[]` | modal con "sin profesor asignado" / "no imparte materias" |
-| DELETE de id inexistente | 200 | texto de éxito igualmente | la API lo trata como no-op (quirirk documentado) |
+| DELETE de id inexistente | 200 | texto de éxito igualmente | la API lo trata como no-op (quirk documentado) |
 
 En todos los casos el detalle también queda impreso en la **consola de
-peticiones** de la propia página (bloque final de `index.html`), que muestra
+peticiones** de la propia página (bloque final de cada HTML), que muestra
 hora, verbo, URL, body enviado y respuesta recibida.
 
 ---
 
-## 6. Validación
+## 7. Validación
 
 * **Frontend:** HTML5 Constraint Validation (`required`, `min`, `max`,
   `maxlength`) + `checkValidity()` en `validarFormulario(selector)`
-  (`common.js:97`).
-* **Backend:** no hay ninguna (`@Valid`/`jakarta.validation` no se usan).
-  Cualquier payload JSON que Jackson pueda mapear se persiste sin comprobar
-  rangos ni nulos.
+  (`common.js`), y comprobaciones JS extra (las dos contraseñas coinciden).
+* **Backend:** no usa `@Valid`/`jakarta.validation` (no valida rangos ni
+  nulos de los payload de materias/profesores), pero **sí aplica reglas de
+  negocio**, devolviendo JSON:
+  * `POST /api/auth/password` → `400` si la nueva contraseña tiene menos de
+    6 caracteres.
+  * `POST /api/admin/directores` → `400` si faltan `nombre` o `apellidos`.
+  * Altas de usuario duplicadas → `400` (`IllegalStateException`).
+  * Pertenencia (materia propia del profesor, ADMIN fuera de
+    materias/profesores, director autoeditándose) → `403`
+    (`NoAutorizadoException`).
+* Cualquier otro payload JSON que Jackson pueda mapear se persiste sin
+  comprobar rangos ni nulos (p. ej. `creditos` negativos).
 
 ---
 
-## 7. Cómo ejecutarlo
+## 8. Cómo ejecutarlo
 
-### 7.1 Configuración de credenciales (`.env`)
+### 8.1 Configuración de credenciales (`.env`)
 
 Las credenciales de MySQL **no** se guardan en `application.properties`.
 Este archivo solo declara variables (`${DB_URL}`, `${DB_USERNAME}`,
@@ -455,75 +629,118 @@ spring.datasource.password=${DB_PASSWORD}
 > del sistema (útil en CI/Docker). Si no se define ninguna de las dos, el
 > arranque falla con *"Could not resolve placeholder 'DB_URL'"*.
 
-### 7.2 Arrancar
+### 8.2 Arrancar
 
 ```bash
 cd profemateria
 ./mvnw spring-boot:run
 ```
 
-1. Abrir **<http://localhost:8080/index.html>** (Materias) o
-   **<http://localhost:8080/profesores.html>** (Profesores). El HTML está en
-   `static/`, servido por la propia aplicación → mismo origen → sin CORS.
-2. Cada página carga su listado automáticamente (`GET /api/materias` o
-   `GET /api/profesor`).
+1. Abrir **<http://localhost:8080/login.html>** y entrar con el usuario
+   correspondiente (ADMIN `1000`, o el director/profesor dado de alta).
+   Cada usuario aterriza en la página de su rol; si aún no cambió la
+   contraseña, en `cambiar-password.html`.
+2. Cada página carga su listado automáticamente (`GET /api/materias`,
+   `GET /api/profesor` o `GET /api/admin/directores`) y sólo tras pasar la
+   guardia `Sesion.iniciar({ roles: [...] })`.
 3. Cada acción de la UI dispara su `$.ajax` y queda registrada en la
-   consola de peticiones al final de la página. Se navega entre ambas con la
-   barra superior.
+   consola de peticiones al final de la página. Se navega con la barra
+   superior (visible según rol) y se sale con el botón *Salir*.
 
 Requisitos: MySQL accesible en `host.docker.internal:3306` con la base
-`api_rest_spring-boot` (script en `data/generar_base_de_datos.sql`).
+`api_rest_spring-boot` (script en `data/generar_base_de_datos.sql`; para una
+BD anterior añade `data/migracion_spring_security.sql`). El administrador se
+crea solo al arrancar.
 
 ---
 
-## 8. Pruebas rápidas con curl (equivalente manual de cada AJAX)
+## 9. Pruebas rápidas con curl (equivalente manual de cada AJAX)
+
+Todo requiere sesión: primero haz **login** (el `username` es el `user_id`)
+y reutiliza la cookie en las siguientes llamadas con `-b`.
 
 ```bash
-# LISTAR  → listarMaterias()
-curl -s http://localhost:8080/api/materias
+# ===== 1) SESIÓN =====
+# Sin cookie → 401 {"status":401,"error":"No autenticado",...}
+
+# Ej. DIRECTOR (id 1, contraseña por defecto 1234)
+curl -s -c cookies.txt -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"1","password":"1234"}'
+
+# Usuario autenticado → GET /api/auth/me  → login.js / sesion.js
+curl -s -b cookies.txt http://localhost:8080/api/auth/me
+
+# Cambiar contraseña (primer acceso) → cambiar-password.js
+curl -s -b cookies.txt -X POST http://localhost:8080/api/auth/password \
+  -H "Content-Type: application/json" \
+  -d '{"nuevaPassword":"nueva123"}'
+
+# ===== 2) MATERIAS (/api/materias) — DIRECTOR y PROFESOR =====
+
+# LISTAR  → listarMaterias()   (PROFESOR: sólo las suyas)
+curl -s -b cookies.txt http://localhost:8080/api/materias
 
 # BUSCAR  → buscarPorId()
-curl -s http://localhost:8080/api/materias/1
+curl -s -b cookies.txt http://localhost:8080/api/materias/1
 
 # CREAR   → crearMateria()
-curl -s -X POST http://localhost:8080/api/materias \
+curl -s -b cookies.txt -X POST http://localhost:8080/api/materias \
   -H "Content-Type: application/json" \
   -d '{"nombre":"Álgebra","creditos":6,"horasCatedra":48,"idProfesor":1}'
 
 # EDITAR  → actualizarMateria()
-curl -s -X PUT http://localhost:8080/api/materias \
+curl -s -b cookies.txt -X PUT http://localhost:8080/api/materias \
   -H "Content-Type: application/json" \
   -d '{"idMateria":1,"nombre":"Álgebra II","creditos":6,"horasCatedra":48,"idProfesor":1}'
 
 # BORRAR  → eliminarMateria()
-curl -s -X DELETE http://localhost:8080/api/materias/1
+curl -s -b cookies.txt -X DELETE http://localhost:8080/api/materias/1
 
-# ----- Profesores (/api/profesor) -----
+# ===== 3) PROFESORES (/api/profesor) — sólo DIRECTOR =====
+# (con sesión de PROFESOR o ADMIN → 403)
 
 # LISTAR  → listarProfesores()
-curl -s http://localhost:8080/api/profesor
+curl -s -b cookies.txt http://localhost:8080/api/profesor
 
 # BUSCAR  → buscarPorId()
-curl -s http://localhost:8080/api/profesor/1
+curl -s -b cookies.txt http://localhost:8080/api/profesor/1
 
-# CREAR   → crearProfesor()
-curl -s -X POST http://localhost:8080/api/profesor \
+# CREAR   → crearProfesor()  (crea también el usuario ROLE_PROFESOR)
+curl -s -b cookies.txt -X POST http://localhost:8080/api/profesor \
   -H "Content-Type: application/json" \
   -d '{"nombre":"Ana","apellidos":"Gómez","direccion":"Calle 1"}'
 
 # EDITAR  → actualizarProfesor()
-curl -s -X PUT http://localhost:8080/api/profesor \
+curl -s -b cookies.txt -X PUT http://localhost:8080/api/profesor \
   -H "Content-Type: application/json" \
   -d '{"idProfesor":1,"nombre":"Hubert","apellidos":"Farnsworth","direccion":"Planet Express"}'
 
 # BORRAR  → eliminarProfesor()
-curl -s -X DELETE http://localhost:8080/api/profesor/4
+curl -s -b cookies.txt -X DELETE http://localhost:8080/api/profesor/4
 
-# ----- Endpoints de relación (subrecurso) -----
+# ===== 4) RELACIÓN (subrecurso) =====
 
 # PROFESOR DE UNA MATERIA  → verProfesorDeMateria()
-curl -s http://localhost:8080/api/materias/3/profesor
+curl -s -b cookies.txt http://localhost:8080/api/materias/3/profesor
 
 # MATERIAS DE UN PROFESOR  → verMateriasDeProfesor()
-curl -s http://localhost:8080/api/profesor/1/materias
+curl -s -b cookies.txt http://localhost:8080/api/profesor/1/materias
+
+# ===== 5) ADMINISTRACIÓN — otra sesión, rol ADMIN =====
+
+curl -s -c admin.txt -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"1000","password":"admin1234"}'
+
+# LISTAR directores → directores.js
+curl -s -b admin.txt http://localhost:8080/api/admin/directores
+
+# ALTA de director (muestra passwordPorDefecto en la respuesta)
+curl -s -b admin.txt -X POST http://localhost:8080/api/admin/directores \
+  -H "Content-Type: application/json" \
+  -d '{"nombre":"Ogden","apellidos":"Wernstrom","direccion":"Mars University"}'
+
+# Cerrar sesión (invalida la cookie)
+curl -s -b cookies.txt -X POST http://localhost:8080/api/auth/logout
 ```
