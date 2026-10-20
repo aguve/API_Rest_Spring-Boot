@@ -75,8 +75,9 @@ function mostrarMensaje(tipo, texto) {
 
 /**
  * Construye el mensaje de error estándar a partir del objeto jqXHR.
- * La API NO tiene @ExceptionHandler: los errores llegan con el JSON por
- * defecto de Spring Boot: {timestamp, status, error, path}
+ * La API usa un @ExceptionHandler (ApiExceptionHandler) para 403/400 de
+ * negocio, y el JSON por defecto de Spring Boot para el resto; en ambos
+ * casos el cuerpo suele traer {status, error, message, path}.
  */
 function mensajeError(jqXHR) {
     const r = jqXHR.responseJSON;

@@ -366,8 +366,8 @@ Sin sesión → `401`; sin el rol adecuado → `403` (JSON, ver
 |---|---|---|---|---|
 | GET | `/api/materias` | Lista las materias (PROFESOR: sólo las suyas) | — | Array JSON |
 | GET | `/api/materias/{id}` | Obtiene una materia por ID | — | Objeto JSON (vacío si no existe) |
-| POST | `/api/materias` | Crea una materia | Objeto JSON sin `idMateria` | Objeto creado (con `idMateria`) |
-| PUT | `/api/materias` | Actualiza una materia | Objeto JSON con `idMateria` | Objeto actualizado |
+| POST | `/api/materias` | Crea una materia (PROFESOR: se autoasigna) | Objeto JSON sin `idMateria`; `idProfesor` obligatorio sólo para DIRECTOR | Objeto creado (con `idMateria`) |
+| PUT | `/api/materias` | Actualiza una materia | Objeto JSON con `idMateria`; `idProfesor` obligatorio sólo para DIRECTOR | Objeto actualizado |
 | DELETE | `/api/materias/{id}` | Elimina una materia | — | Texto plano |
 | GET | `/api/materias/{id}/profesor` | Profesor que imparte la materia | — | Objeto JSON `Profesor` (vacío si no existe) |
 

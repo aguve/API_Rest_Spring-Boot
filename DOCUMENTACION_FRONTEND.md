@@ -336,15 +336,17 @@ Flujo completo de la transmisión:
 2. submit → e.preventDefault()                        (app.js:334)
 3. validarFormulario("#formMateria") — Constraint Validation de HTML5
       (el backend no valida campos, sólo reglas de negocio — ver sección 7)
-4. obtenerDatosDelFormulario() → objeto JS             (app.js:257)
+4. obtenerDatosDelFormulario() → objeto JS             (app.js:334)
       { nombre, creditos, horasCatedra, idProfesor }   ← SIN idMateria
+      (si el usuario es PROFESOR se OMITE idProfesor: el backend lo fuerza)
 5. JSON.stringify(datos)  → texto JSON
 6. $.ajax envía:
       POST /api/materias
       Content-Type: application/json; charset=UTF-8
 
       {"nombre":"Álgebra","creditos":6,"horasCatedra":48,"idProfesor":1}
-7. Spring: @RequestBody + Jackson → new Materia(...) con idMateria = 0
+7. Spring: @RequestBody + Jackson → MateriaRequest (DTO con Integer) →
+      Materia con idMateria = 0
 8. materiaDAO.save() → entityManager.persist() → INSERT
       MySQL genera el id autoincrement (IDENTITY)
 9. El controlador devuelve la Materia YA CON su idMateria nuevo
@@ -352,8 +354,14 @@ Flujo completo de la transmisión:
 11. success → mensaje de éxito + listarMaterias() refresca la tabla
 ```
 
-Nota: en modo creación se hace `delete datos.idMateria` (`app.js:343`) para
+Nota: en modo creación se hace `delete datos.idMateria` (`app.js:430`) para
 no mandar `idMateria: 0` (innecesario; la BD asigna el id).
+
+> **Entrada en POST/PUT:** el cuerpo se mapea a un DTO `MateriaRequest`
+> (`record` con `Integer idMateria/idProfesor`), no directamente a la
+> entidad. Así un profesor puede crear sin enviar `idProfesor` (o enviando
+> `null`) sin que Jackson falle al mapear a `int`; el controlador fuerza el
+> id del profesor autenticado. Con DIRECTOR, `idProfesor` sí es obligatorio.
 
 ### 4.4 ACTUALIZAR — `PUT /api/materias`
 
@@ -365,8 +373,11 @@ dentro del JSON, no en la URL):
 ```
 
 El DAO (`MateriaDAOImpl.update`) busca la fila por `idMateria`; si no
-existe, `entityManager.merge()` **inserta una fila nueva** (comportamiento
-*upsert*). La respuesta es `200 OK` con el objeto reflejado.
+existe, la inserta como fila nueva (comportamiento *upsert*). La respuesta es
+`200 OK` con el objeto reflejado.
+
+Para un PROFESOR, `idProfesor` puede omitirse: el backend lo fuerza a su
+propio id y sólo permite editar materias que ya sean suyas (`403` si no).
 
 Código: `actualizarMateria()` → `app.js:194`.
 
@@ -562,6 +573,7 @@ Situaciones posibles y su comportamiento:
 | Contraseña < 6 caracteres / campos de alta vacíos / usuario duplicado | 400 | `{"status":400,"error":"…","message":"…"}` | alerta roja con el `message` |
 | Login con credenciales incorrectas | 401 | `{"status":401,"error":"Usuario o contraseña incorrectos"}` | alerta roja en `login.html` |
 | JSON malformado / id no numérico | 400 | JSON de error de Spring | alerta roja con `mensajeError()` |
+| `idProfesor` ausente/`null` en POST o PUT **siendo DIRECTOR** | 403 | `{"message":"Indique un id de profesor válido"}` | alerta roja con el `message` |
 | `idProfesor` inexistente al crear materia (violación FK) | 500 | JSON de error de Spring | alerta roja; el registro **no** se crea |
 | Borrar profesor con materias asignadas (violación FK) | 500 | JSON de error de Spring | alerta roja; el profesor **no** se elimina |
 | Backend caído / puerto cerrado | 0 | — | "No se pudo contactar con la API…" |

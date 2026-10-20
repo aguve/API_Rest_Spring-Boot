@@ -332,13 +332,19 @@ function eliminarMateria(id) {
  * el campo llega en 0 (o null) al servidor.
  */
 function obtenerDatosDelFormulario() {
-    return {
+    const datos = {
         idMateria: parseInt($("#idMateria").val() || "0", 10),
         nombre: $("#nombre").val().trim(),
         creditos: parseInt($("#creditos").val(), 10),
-        horasCatedra: parseInt($("#horasCatedra").val(), 10),
-        idProfesor: parseInt($("#idProfesor").val(), 10)
+        horasCatedra: parseInt($("#horasCatedra").val(), 10)
     };
+
+    // Un profesor NO envía idProfesor: el backend se lo asigna él mismo
+    // (enviar "idProfesor": null haría fallar el parseo de int en el servidor).
+    if (!Sesion.usuario || Sesion.usuario.rol !== "PROFESOR") {
+        datos.idProfesor = parseInt($("#idProfesor").val(), 10);
+    }
+    return datos;
 }
 
 /** Rellena el formulario con los datos de una fila (modo edición). */

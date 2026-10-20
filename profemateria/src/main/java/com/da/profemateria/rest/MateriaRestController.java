@@ -43,6 +43,24 @@ public class MateriaRestController {
         this.profesorDAO = profesorDAO;
     }
 
+    /**
+     * Cuerpo de entrada de POST/PUT. Se usan envoltorios (Integer) para que
+     * Jackson tolere que idMateria (POST) o idProfesor (profesor) falten o
+     * lleguen como null, cosa que un {@code int} primitivo no permite.
+     */
+    public record MateriaRequest(Integer idMateria, String nombre, Integer creditos,
+                                 Integer horasCatedra, Integer idProfesor) {
+
+        /** Convierte a entidad; los nulos se resuelven como 0. */
+        private Materia aEntidad() {
+            return new Materia(
+                    nombre,
+                    creditos == null ? 0 : creditos,
+                    horasCatedra == null ? 0 : horasCatedra,
+                    idProfesor == null ? 0 : idProfesor);
+        }
+    }
+
     /* ============================== LEER ============================== */
 
     @GetMapping("/materias")
@@ -74,11 +92,11 @@ public class MateriaRestController {
     /* ============================= CREAR ============================== */
 
     @PostMapping("/materias")
-    public Materia save(@RequestBody Materia materia) {
+    public Materia save(@RequestBody MateriaRequest datos) {
         exigirPuedeUsarMaterias();
+        Materia materia = datos.aEntidad();
         if (UsuarioActual.esProfesor()) {
             // El profesor sólo puede darse de alta materias a su nombre.
-            materia.setIdMateria(0);
             materia.setIdProfesor(UsuarioActual.id());
         } else {
             exigirProfesorDeLaMateria(materia.getIdProfesor());
@@ -90,16 +108,15 @@ public class MateriaRestController {
     /* =========================== ACTUALIZAR =========================== */
 
     @PutMapping("/materias")
-    public Materia update(@RequestBody Materia materia) {
+    public Materia update(@RequestBody MateriaRequest datos) {
         exigirPuedeUsarMaterias();
 
-        Materia existente = materiaDAO.findById(materia.getIdMateria());
-        if (existente == null) {
-            // merge() hace upsert: se comporta igual que antes si no existía
-            existente = materia;
-        }
-        exigirPropiaDeProfesor(existente, materia.getIdMateria());
+        int idMateria = datos.idMateria() == null ? 0 : datos.idMateria();
+        Materia existente = materiaDAO.findById(idMateria);
+        exigirPropiaDeProfesor(existente, idMateria);
 
+        Materia materia = datos.aEntidad();
+        materia.setIdMateria(idMateria);
         if (UsuarioActual.esProfesor()) {
             materia.setIdProfesor(UsuarioActual.id());
         } else {

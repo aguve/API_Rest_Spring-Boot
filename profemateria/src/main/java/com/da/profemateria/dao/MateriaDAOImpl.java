@@ -36,12 +36,20 @@ public class MateriaDAOImpl implements MateriaDAO {
         int id = materia.getIdMateria();
         Materia existingMateria = entityManager.find(Materia.class, id);
         if (existingMateria != null) {
+            // Se actualiza la entidad gestionada y se deja que el flush de la
+            // transacción persista los cambios. Un merge() adicional sobre la
+            // entidad entrante provocaría un conflicto de versión al hacerlo.
             existingMateria.setNombre(materia.getNombre());
             existingMateria.setCreditos(materia.getCreditos());
             existingMateria.setHorasCatedra(materia.getHorasCatedra());
             existingMateria.setIdProfesor(materia.getIdProfesor());
+        } else {
+            // No existía: comportamiento upsert. Se fuerza id 0 para que
+            // Hibernate lo trate como alta (con el id que traía, merge()
+            // intentaría actualizar una fila inexistente y fallaría).
+            materia.setIdMateria(0);
+            entityManager.persist(materia);
         }
-        entityManager.merge(materia);
     }
 
     @Override
