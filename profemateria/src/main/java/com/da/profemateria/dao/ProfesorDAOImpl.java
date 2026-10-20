@@ -65,4 +65,23 @@ public class ProfesorDAOImpl implements ProfesorDAO {
         query.setParameter("idProfesor", idProfesor);
         return query.getResultList();
     }
+
+    @Override
+    public List<Profesor> findByNombreCompleto(String nombreCompleto) {
+        TypedQuery<Profesor> query = entityManager.createQuery(
+                "FROM Profesor p WHERE LOWER(CONCAT(p.nombre, ' ', p.apellidos)) = LOWER(:nombre) "
+                + "ORDER BY p.idProfesor", Profesor.class);
+        query.setParameter("nombre", nombreCompleto.trim().replaceAll("\\s+", " "));
+        return query.getResultList();
+    }
+
+    @Override
+    public boolean existeNombreCompleto(String nombreCompleto, Integer exceptoId) {
+        TypedQuery<Long> query = entityManager.createQuery(
+                "SELECT COUNT(p) FROM Profesor p WHERE LOWER(CONCAT(p.nombre, ' ', p.apellidos)) = LOWER(:nombre) "
+                + "AND (:excepto IS NULL OR p.idProfesor <> :excepto)", Long.class);
+        query.setParameter("nombre", nombreCompleto.trim().replaceAll("\\s+", " "));
+        query.setParameter("excepto", exceptoId);
+        return query.getSingleResult() > 0;
+    }
 }

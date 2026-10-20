@@ -34,7 +34,7 @@ $(document).ready(function () {
         };
 
         if (!datos.username) {
-            mostrarMensaje("warning", "Indica tu ID de usuario.");
+            mostrarMensaje("warning", "Indica tu nombre de usuario.");
             return;
         }
 
@@ -60,7 +60,7 @@ $(document).ready(function () {
                 }
 
                 mostrarMensaje("success",
-                    `Bienvenido/a ${sesion.rol} (ID ${sesion.userId}).`);
+                    `Bienvenido/a ${sesion.nombreCompleto || sesion.rol}.`);
                 setTimeout(function () {
                     location.replace(sesion.rol === "ADMIN" ? "directores.html" : "index.html");
                 }, 400);

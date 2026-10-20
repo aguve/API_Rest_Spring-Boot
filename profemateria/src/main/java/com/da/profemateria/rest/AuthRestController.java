@@ -28,7 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
  * de contraseña.
  *
  * <ul>
- *   <li>POST /api/auth/login    → {username, password}  (username = user_id)</li>
+ *   <li>POST /api/auth/login    → {username, password}  (username = "nombre apellidos" o user_id)</li>
  *   <li>POST /api/auth/logout   → cierra la sesión</li>
  *   <li>GET  /api/auth/me       → datos del usuario autenticado</li>
  *   <li>POST /api/auth/password → {nuevaPassword}</li>
@@ -127,7 +127,7 @@ public class AuthRestController {
 
         com.da.profemateria.entity.Usuario usuario = usuarioService.cambiarPassword(principal.getUserId(), nueva);
 
-        AppUserDetails actualizado = AppUserDetails.desde(usuario);
+        AppUserDetails actualizado = usuarioService.principalDe(usuario);
         Authentication autenticacion = UsernamePasswordAuthenticationToken.authenticated(
                 actualizado, null, actualizado.getAuthorities());
         SecurityContext contexto = SecurityContextHolder.createEmptyContext();
@@ -142,6 +142,7 @@ public class AuthRestController {
         Map<String, Object> cuerpo = new LinkedHashMap<>();
         cuerpo.put("userId", usuario.getUserId());
         cuerpo.put("username", usuario.getUsername());
+        cuerpo.put("nombreCompleto", usuario.getNombreCompleto());
         cuerpo.put("authority", usuario.getAuthority());
         cuerpo.put("rol", usuario.getRol());
         cuerpo.put("passwordChanged", usuario.isPasswordChanged());

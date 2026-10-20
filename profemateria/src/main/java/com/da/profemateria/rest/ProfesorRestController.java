@@ -82,6 +82,18 @@ public class ProfesorRestController {
     public Map<String, Object> save(@RequestBody Profesor profesor) {
         exigirDirector();
 
+        String nombreCompleto = (nvl(profesor.getNombre()) + " " + nvl(profesor.getApellidos()))
+                .trim().replaceAll("\\s+", " ");
+        if (nombreCompleto.isEmpty()) {
+            throw new IllegalStateException("Nombre y apellidos son obligatorios");
+        }
+        if (profesorDAO.existeNombreCompleto(nombreCompleto, null)) {
+            throw new IllegalStateException(
+                    "Ya existe un profesor llamado \"" + nombreCompleto + "\". "
+                    + "Añada un número o segundo apellido para distinguirlo (p. ej. \""
+                    + nombreCompleto + " 2\").");
+        }
+
         profesorDAO.save(profesor);
 
         Usuario usuario;
@@ -116,6 +128,13 @@ public class ProfesorRestController {
                         usuarioDAO.findById(profesor.getIdProfesor()).getPrincipalAuthority())) {
             throw new NoAutorizadoException(
                     "Un director no puede modificarse a sí mismo desde la gestión de profesores");
+        }
+        String nombreCompleto = (nvl(profesor.getNombre()) + " " + nvl(profesor.getApellidos()))
+                .trim().replaceAll("\\s+", " ");
+        if (profesorDAO.existeNombreCompleto(nombreCompleto, profesor.getIdProfesor())) {
+            throw new IllegalStateException(
+                    "Ya existe otro profesor llamado \"" + nombreCompleto + "\". "
+                    + "Añada un número o segundo apellido para distinguirlo.");
         }
         profesorDAO.update(profesor);
         return profesor;
@@ -157,5 +176,10 @@ public class ProfesorRestController {
         if (!UsuarioActual.esDirector()) {
             throw new NoAutorizadoException("Sólo el director puede gestionar profesores");
         }
+    }
+
+    /** Cadena segura frente a null, para construir el nombre completo. */
+    private static String nvl(String valor) {
+        return valor == null ? "" : valor.trim();
     }
 }

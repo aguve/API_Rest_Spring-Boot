@@ -215,11 +215,27 @@ frontend para redirigir).
 - Ajustes en `application.properties`: `app.seguridad.id-admin`,
   `app.seguridad.password-admin` y `app.seguridad.password-por-defecto`.
 
+### Identificador de acceso (usuario)
+
+- Profesores y directores inician sesión con su **`nombre` + `apellidos`**
+  (tal cual figuran en la tabla `profesor`, sin distinguir mayúsculas), o
+  alternativamente con su `user_id` numérico.
+- El **administrador** (sin fila en `profesor`) entra siempre con su
+  `user_id` (`1000`).
+- Para evitar suplantaciones, si un `"nombre apellidos"` corresponde a más
+  de un profesor el acceso por nombre falla (habría que desambiguar o usar
+  el `user_id`).
+- Al dar de alta un profesor (DIRECTOR) o un director (ADMIN) se **rechaza**
+  el alta si ya existe otro con el mismo `"nombre apellidos"` (sin
+  distinguir mayúsculas), sugiriendo añadir un número o un segundo apellido.
+  > *Mejora futura:* añadir a `profesor` (y a la BD) un campo `email`
+  > `UNIQUE` que sirva de identificador de acceso inequívoco.
+
 ### Endpoints de sesión
 
 | Método | Ruta | Descripción | Body | Respuesta |
 |---|---|---|---|---|
-| POST | `/api/auth/login` | Abre sesión | `{username, password}` | Datos de sesión (200) o `401` |
+| POST | `/api/auth/login` | Abre sesión | `{username, password}` (`username`: `"nombre apellidos"` o `user_id`) | Datos de sesión (200) o `401` |
 | GET | `/api/auth/me` | Usuario autenticado | — | Datos de sesión o `401` |
 | POST | `/api/auth/logout` | Cierra la sesión | — | `{ok: true}` |
 | POST | `/api/auth/password` | Cambia la contraseña | `{nuevaPassword}` (≥6 caracteres) | `{ok: true}` o `400`/`401` |
@@ -232,6 +248,7 @@ Datos de sesión (respuesta de `login` y `me`):
 {
   "userId": 1000,
   "username": "1000",
+  "nombreCompleto": "1000",
   "authority": "ROLE_ADMIN",
   "rol": "ADMIN",
   "passwordChanged": false,
@@ -386,7 +403,7 @@ Sin sesión → `401`; sin el rol adecuado → `403` (JSON, ver
 
 | Método | Ruta | Descripción | Body (request) | Respuesta |
 |---|---|---|---|---|
-| POST | `/api/auth/login` | Abre sesión (rotación de cookie) | `{username, password}` | Datos de sesión o `401` |
+| POST | `/api/auth/login` | Abre sesión (rotación de cookie) | `{username, password}` (`username`: `"nombre apellidos"` o `user_id`) | Datos de sesión o `401` |
 | GET | `/api/auth/me` | Usuario autenticado | — | Datos de sesión o `401` |
 | POST | `/api/auth/logout` | Cierra la sesión | — | `{ok: true, message}` |
 | POST | `/api/auth/password` | Cambia la contraseña | `{nuevaPassword}` (≥6) | `{ok: true, message}` o `400` |

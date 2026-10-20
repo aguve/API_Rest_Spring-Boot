@@ -82,6 +82,8 @@ function nuevoDirector(datos) {
 
             $("#directorCreado").text(
                 `${data.profesor.nombre} ${data.profesor.apellidos}`);
+            $("#directorCreadoUsuario").text(
+                `${data.profesor.nombre} ${data.profesor.apellidos}`);
             $("#passwordUserId").text(data.userId);
             $("#passwordPorDefecto").text(data.passwordPorDefecto);
             new bootstrap.Modal("#modalPassword").show();

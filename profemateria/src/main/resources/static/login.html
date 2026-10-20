@@ -40,14 +40,15 @@
             <form id="formLogin" novalidate>
 
               <div class="mb-3">
-                <label for="username" class="form-label">ID de usuario *</label>
-                <input type="number" class="form-control" id="username"
-                       min="1" required placeholder="1000"
+                <label for="username" class="form-label">Usuario *</label>
+                <input type="text" class="form-control" id="username"
+                       required placeholder="Nombre Apellidos"
                        autocomplete="username">
                 <div class="form-text">
-                  El <code>user_id</code> de la tabla <code>users</code>.
+                  Su <b>nombre y apellidos</b> (profesores y directores) o su
+                  <code>user_id</code> numérico.
                 </div>
-                <div class="invalid-feedback">Indica tu ID de usuario.</div>
+                <div class="invalid-feedback">Indica tu usuario.</div>
               </div>
 
               <div class="mb-3">
@@ -68,9 +69,10 @@
 
             <hr>
             <p class="small text-muted mb-0">
-              Cada usuario entra con su <b>ID</b> y la contraseña por defecto
-              que se le asignó al darse de alta. En el primer acceso se le
-              obligará a cambiarla.
+              Profesores y directores entran con su <b>nombre y apellidos</b>
+              (o su ID numérico) y la contraseña por defecto que se les asignó
+              al darse de alta. El administrador entra con su ID. En el primer
+              acceso se le obligará a cambiar la contraseña.
             </p>
           </div>
         </div>

@@ -69,6 +69,8 @@ estáticos separado).
 
 ```
 login.html ── POST /api/auth/login {username, password} ──▶ cookie JSESSIONID
+     │            (username = "nombre apellidos" del profesor/director,
+     │             o su user_id; el admin usa su user_id 1000)
      │
      ├─ passwordChanged = false ──▶ cambiar-password.html
      │        └── POST /api/auth/password {nuevaPassword} ──▶ inicio del rol
@@ -79,18 +81,20 @@ login.html ── POST /api/auth/login {username, password} ──▶ cookie JSE
             └─ rol PROFESOR  ──▶ index.html   (sólo sus materias)
 ```
 
-El `username` del login **es el `user_id`** (numérico): `1000` para el
-administrador, y para directores/profesores el mismo id que su fila en
-`profesor`. La contraseña viaja en el body JSON (HTTP en local; usa HTTPS en
-producción) y se guarda cifrada con **BCrypt** en `users.password`. El login
-**rota la sesión** (invalida la cookie previa) para evitar fijación de
-sesión.
+El `username` del login es, para directores y profesores, su **"nombre
+apellidos"** (columnas `nombre`/`apellidos` de la tabla `profesor`, sin
+distinguir mayúsculas); también se acepta el `user_id` numérico. El
+administrador (sin fila en `profesor`) entra con su `user_id` (`1000`).
+Internamente el `username` del principal sigue siendo el `user_id`. La
+contraseña viaja en el body JSON (HTTP en local; usa HTTPS en producción) y
+se guarda cifrada con **BCrypt** en `users.password`. El login **rota la
+sesión** (invalida la cookie previa) para evitar fijación de sesión.
 
 ### 2.2 Endpoints de sesión — `/api/auth` y `/api/admin`
 
 | Verbo | Ruta | Body (request) | Response `200` | Errores |
 |---|---|---|---|---|
-| POST | `/api/auth/login` | `{"username":"1000","password":"..."}` | datos de sesión | `401` credenciales |
+| POST | `/api/auth/login` | `{"username":"Hubert Farnsworth","password":"..."}` (o `"1"`) | datos de sesión | `401` credenciales |
 | GET | `/api/auth/me` | — | datos de sesión | `401` sin sesión |
 | POST | `/api/auth/logout` | — | `{"ok":true,"message":"Sesión cerrada"}` | — |
 | POST | `/api/auth/password` | `{"nuevaPassword":"nueva123"}` | `{"ok":true,"message":"Contraseña actualizada"}` | `400` (<6 caracteres), `401` |
@@ -103,12 +107,16 @@ Datos de sesión (devueltos por `login` y `me`):
 {
   "userId": 1000,
   "username": "1000",
+  "nombreCompleto": "1000",
   "authority": "ROLE_ADMIN",
   "rol": "ADMIN",
   "passwordChanged": false,
   "passwordPorDefecto": "admin1234"
 }
 ```
+
+`nombreCompleto` es el nombre visible ("nombre apellidos" del profesor, o el
+`user_id` para el admin) y lo usa la barra de sesión del frontend.
 
 `passwordPorDefecto` es `null` cuando `passwordChanged` ya es `true`
 (sólo se revela mientras el usuario tenga la contraseña de fábrica).
@@ -434,10 +442,13 @@ en la respuesta:
 
 La respuesta completa queda registrada en la **consola de peticiones** de la
 página (el aviso de éxito sólo muestra nombre e id). El `userId` y la
-`passwordPorDefecto` son para que el director se los comunique al profesor;
-en `directores.html` sí hay un modal dedicado con esos datos. Si la creación
-del usuario falla (p. ej. id duplicado), el backend **deshace el alta** del
-profesor (rollback manual) y devuelve `400` con `message`.
+`passwordPorDefecto` son para que el director se los comunique al profesor,
+indicándole que accede con su **nombre y apellidos**; en `directores.html` sí
+hay un modal dedicado con esos datos. Si la creación del usuario falla (p. ej.
+id duplicado), el backend **deshace el alta** del profesor (rollback manual) y
+devuelve `400` con `message`. Si ya existe otro profesor con el mismo `"nombre
+apellidos"`, el alta se rechaza también con `400` y un mensaje que sugiere
+añadir un número o un segundo apellido.
 
 Restricciones de negocio (devuelven `403` JSON vía `ApiExceptionHandler`):
 
@@ -571,6 +582,8 @@ Situaciones posibles y su comportamiento:
 | Rol insuficiente (p. ej. PROFESOR en `/api/profesor`) | 403 | `{"status":403,"error":"Acceso denegado",...}` o `{"message":"Sólo puede gestionar sus propias materias…"}` | alerta roja con `mensajeError()` |
 | Contraseña por defecto sin renovar | 403 | `code: "PASSWORD_CHANGE_REQUIRED"` | salto a `cambiar-password.html` |
 | Contraseña < 6 caracteres / campos de alta vacíos / usuario duplicado | 400 | `{"status":400,"error":"…","message":"…"}` | alerta roja con el `message` |
+| Alta de profesor/director con "nombre apellidos" ya existente | 400 | `{"status":400,"message":"Ya existe un profesor llamado …"}` | alerta roja con el `message` (sugiere añadir un número) |
+| Login con "nombre apellidos" ambiguo (varios profesores) | 401 | `{"status":401,"error":"Usuario o contraseña incorrectos"}` | alerta roja en `login.html` |
 | Login con credenciales incorrectas | 401 | `{"status":401,"error":"Usuario o contraseña incorrectos"}` | alerta roja en `login.html` |
 | JSON malformado / id no numérico | 400 | JSON de error de Spring | alerta roja con `mensajeError()` |
 | `idProfesor` ausente/`null` en POST o PUT **siendo DIRECTOR** | 403 | `{"message":"Indique un id de profesor válido"}` | alerta roja con el `message` |
@@ -678,19 +691,19 @@ crea solo al arrancar.
 
 ## 9. Pruebas rápidas con curl (equivalente manual de cada AJAX)
 
-Todo requiere sesión: primero haz **login** (el `username` es el `user_id`)
-y reutiliza la cookie en las siguientes llamadas con `-b`. Los ejemplos usan
-`localhost:8080` (puerto por defecto); si defines `SERVER_PORT` en `.env`,
-sustitúyelo por el tuyo.
+Todo requiere sesión: primero haz **login** (el `username` es el "nombre
+apellidos" del profesor/director, o el `user_id`) y reutiliza la cookie en las
+siguientes llamadas con `-b`. Los ejemplos usan `localhost:8080` (puerto por
+defecto); si defines `SERVER_PORT` en `.env`, sustitúyelo por el tuyo.
 
 ```bash
 # ===== 1) SESIÓN =====
 # Sin cookie → 401 {"status":401,"error":"No autenticado",...}
 
-# Ej. DIRECTOR (id 1, contraseña por defecto 1234)
+# Ej. DIRECTOR por nombre (también valdría su user_id: {"username":"1",...})
 curl -s -c cookies.txt -X POST http://localhost:8080/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"1","password":"1234"}'
+  -d '{"username":"Hubert Farnsworth","password":"1234"}'
 
 # Usuario autenticado → GET /api/auth/me  → login.js / sesion.js
 curl -s -b cookies.txt http://localhost:8080/api/auth/me

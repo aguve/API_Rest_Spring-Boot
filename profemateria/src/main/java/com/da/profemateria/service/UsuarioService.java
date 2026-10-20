@@ -1,7 +1,10 @@
 package com.da.profemateria.service;
 
+import com.da.profemateria.dao.ProfesorDAO;
 import com.da.profemateria.dao.UsuarioDAO;
+import com.da.profemateria.entity.Profesor;
 import com.da.profemateria.entity.Usuario;
+import com.da.profemateria.security.AppUserDetails;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,6 +24,7 @@ public class UsuarioService {
     public static final String ROL_PROFESOR = "ROLE_PROFESOR";
 
     private final UsuarioDAO usuarioDAO;
+    private final ProfesorDAO profesorDAO;
     private final PasswordEncoder passwordEncoder;
 
     @Value("${app.seguridad.id-admin:1000}")
@@ -33,8 +37,10 @@ public class UsuarioService {
     private String passwordPorDefecto;
 
     @Autowired
-    public UsuarioService(UsuarioDAO usuarioDAO, PasswordEncoder passwordEncoder) {
+    public UsuarioService(UsuarioDAO usuarioDAO, ProfesorDAO profesorDAO,
+                          PasswordEncoder passwordEncoder) {
         this.usuarioDAO = usuarioDAO;
+        this.profesorDAO = profesorDAO;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -105,5 +111,17 @@ public class UsuarioService {
         usuarioDAO.save(admin);
         System.out.println("[seguridad] Administrador inicial creado -> user_id=" + idAdmin
                 + ", contraseña por defecto=" + passwordAdmin);
+    }
+
+    /**
+     * Construye el principal con su nombre visible ("nombre apellidos" del
+     * profesor, o el user_id para el admin). Lo usan login y cambio de
+     * contraseña para volver a guardar la sesión con los datos de presentación.
+     */
+    public AppUserDetails principalDe(Usuario usuario) {
+        Profesor profesor = profesorDAO.findById(usuario.getUserId());
+        String nombre = profesor == null ? null
+                : (profesor.getNombre() + " " + profesor.getApellidos()).trim().replaceAll("\\s+", " ");
+        return AppUserDetails.desde(usuario, nombre);
     }
 }

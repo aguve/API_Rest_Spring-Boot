@@ -56,6 +56,16 @@ public class AdminRestController {
                     .body(Map.of("status", 400, "error", "Nombre y apellidos son obligatorios"));
         }
 
+        String nombreCompleto = (datos.nombre().trim() + " " + datos.apellidos().trim())
+                .replaceAll("\\s+", " ");
+        if (profesorDAO.existeNombreCompleto(nombreCompleto, null)) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "status", 400,
+                    "error", "Ya existe un usuario llamado \"" + nombreCompleto + "\". "
+                    + "Añada un número o segundo apellido para distinguirlo (p. ej. \""
+                    + nombreCompleto + " 2\")."));
+        }
+
         Profesor profesor = new Profesor(
                 datos.nombre().trim(),
                 datos.apellidos().trim(),

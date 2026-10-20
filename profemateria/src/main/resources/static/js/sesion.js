@@ -91,10 +91,12 @@ const Sesion = {
 
     pintarBarra: function (usuario) {
         if ($("#usuarioSesion").length) {
+            const rol = usuario.rol.charAt(0) + usuario.rol.slice(1).toLowerCase();
+            const nombre = usuario.nombreCompleto || ("#" + usuario.userId);
             $("#usuarioSesion").html(
                 '<i class="bi bi-person-circle"></i> ' +
-                escapar(usuario.rol.charAt(0) + usuario.rol.slice(1).toLowerCase()) +
-                ' <span class="badge bg-light text-primary">#' + usuario.userId + '</span>'
+                escapar(nombre) +
+                ' <span class="badge bg-light text-primary">' + escapar(rol) + '</span>'
             );
         }
 
