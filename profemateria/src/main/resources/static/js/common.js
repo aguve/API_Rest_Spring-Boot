@@ -107,3 +107,24 @@ function validarFormulario(selector) {
 function escapar(texto) {
     return $("<div>").text(texto).html();
 }
+
+/* ==========================================================================
+ * Manejo global de errores de sesión
+ * --------------------------------------------------------------------------
+ *  · 401 No autenticado              → login.html
+ *  · 403 PASSWORD_CHANGE_REQUIRED    → cambiar-password.html
+ *  (se evita el bucle dentro de esas dos páginas)
+ * ========================================================================== */
+$(document).ajaxError(function (event, jqXHR) {
+    const pagina = location.pathname.split("/").pop() || "index.html";
+    const codigo = jqXHR.responseJSON && jqXHR.responseJSON.code;
+
+    if (jqXHR.status === 401 && pagina !== "login.html") {
+        location.replace("login.html");
+        return;
+    }
+    if (jqXHR.status === 403 && codigo === "PASSWORD_CHANGE_REQUIRED" &&
+        pagina !== "cambiar-password.html") {
+        location.replace("cambiar-password.html");
+    }
+});

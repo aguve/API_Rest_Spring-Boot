@@ -387,6 +387,8 @@ function abrirModalEliminar(p) {
  * ========================================================================== */
 $(document).ready(function () {
 
+    Sesion.iniciar({ roles: ["DIRECTOR"] }).done(function () {
+
     listarProfesores(); // carga inicial (GET /api/profesor)
 
     // GET /api/profesor/{id}
@@ -432,4 +434,6 @@ $(document).ready(function () {
     $("#btnLimpiarConsola").on("click", function () {
         $("#consolaAjax").empty();
     });
+
+    }); // fin Sesion.iniciar
 });

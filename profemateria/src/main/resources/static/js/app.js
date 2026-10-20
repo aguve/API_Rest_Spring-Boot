@@ -395,6 +395,16 @@ function abrirModalEliminar(m) {
  */
 $(document).ready(function () {
 
+    Sesion.iniciar({ roles: ["DIRECTOR", "PROFESOR"] }).done(function (usuario) {
+
+    // Un profesor sólo puede crear/editar materias a su nombre: se oculta el
+    // campo "ID Profesor" y se muestra un aviso.
+    if (usuario.rol === "PROFESOR") {
+        $("#idProfesor").closest(".mb-3").addClass("d-none");
+        $("#idProfesor").prop("required", false);
+        $("#avisoProfesor").removeClass("d-none");
+    }
+
     listarMaterias(); // carga inicial (GET /api/materias)
 
     // GET /api/materias/{id}
@@ -440,4 +450,6 @@ $(document).ready(function () {
     $("#btnLimpiarConsola").on("click", function () {
         $("#consolaAjax").empty();
     });
+
+    }); // fin Sesion.iniciar
 });
